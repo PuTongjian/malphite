@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "type:check": "vue-tsc --noEmit --skipLibCheck",
     "lint:eslint": "eslint --max-warnings 0  \"src/**/*.{vue,ts}\" --fix",
-    "commit": "cz"
+    "lint-staged": "lint-staged"
   },
   "dependencies": {
     "vue": "^3.4.21",
@@ -28,6 +28,9 @@
     "vue-tsc": "^2.0.6"
   },
   "lint-staged": {
-    "*.{vue,js,jsx,ts,tsx}": "eslint --fix"
+    "*.{vue,js,jsx,ts,tsx}": [
+      "eslint --max-warnings 0 --fix",
+      "git add"
+    ]
   }
 }
