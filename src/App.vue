@@ -1,7 +1,9 @@
 <script setup lang="ts"></script>
 
 <template>
-  <config-provider></config-provider>
+  <config-provider>
+    <router-view />
+  </config-provider>
 </template>
 
 <style scoped></style>
