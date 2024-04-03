@@ -12,7 +12,7 @@ export default defineConfig({
       dts: "src/types/components.d.ts",
       include: [/\.vue$/, /\.vue\?vue/],
       exclude: [/node_modules/],
-      dirs: ["src/components"],
+      dirs: ["src/components"]
     }),
   ],
 });
