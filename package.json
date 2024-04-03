@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "type:check": "vue-tsc --noEmit --skipLibCheck",
     "lint:eslint": "eslint --max-warnings 0  \"src/**/*.{vue,ts}\" --fix",
-    "lint-staged": "lint-staged"
+    "lint-staged": "lint-staged",
+    "prepare": "husky"
   },
   "dependencies": {
     "vue": "^3.4.21",
@@ -21,6 +22,7 @@
     "@vitejs/plugin-vue": "^5.0.4",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.24.0",
+    "husky": "^9.0.11",
     "lint-staged": "^15.2.2",
     "typescript": "^5.2.2",
     "unplugin-vue-components": "^0.26.0",
@@ -28,9 +30,6 @@
     "vue-tsc": "^2.0.6"
   },
   "lint-staged": {
-    "*.{vue,js,jsx,ts,tsx}": [
-      "eslint --max-warnings 0 --fix",
-      "git add"
-    ]
+    "*.{vue,js,jsx,ts,tsx}": "eslint --fix"
   }
 }
