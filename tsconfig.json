@@ -7,6 +7,7 @@
       "DOM",
       "DOM.Iterable"
     ],
+    "baseUrl": ".",
     "skipLibCheck": true,
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -24,13 +25,15 @@
       "@/*": [
         "./src/*"
       ],
-      "#/*": [
-        "./src/types/*"
-      ]
     },
+    // "typeRoots": [
+    //   "node_modules/@types",
+    //   "src/typings"
+    // ]
   },
   "include": [
     "src/**/*.ts",
+    "src/**/*.d.ts",
     "src/**/*.vue"
   ],
   "exclude": [
