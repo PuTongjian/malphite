@@ -8,7 +8,7 @@ declare namespace RouteType {
   /** 路由的完整路径 */
   type RoutePath =
    | "/"
-   | KeyToPath<RouteKey>
+   | Exclude<KeyToPath<RouteKey>, "/index">
 
   /** 路由组件类型 */
   type RouteComponent =
@@ -25,11 +25,11 @@ declare namespace RouteType {
   /** 自定义路由类型 */
   interface RouteInterface {
     /** 路由名称(路由唯一标识) */
-    name: RouteKey;
+    readonly name: RouteKey;
     /** 路由路径 */
-    path: RoutePath;
+    readonly path: RoutePath;
     /** 路由组件类型 */
-    component: RouteComponent;
+    readonly component: RouteComponent;
     /** 子路由 */
     children?: RouteInterface[];
     /** 路由描述 */
