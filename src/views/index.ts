@@ -1,1 +1,1 @@
-// const views = import.meta.glob("./**/index.vue");
+const views = import.meta.glob("./**/index.vue");
