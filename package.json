@@ -30,6 +30,6 @@
     "vue-tsc": "^2.0.6"
   },
   "lint-staged": {
-    "**/*.{vue,js,jsx,ts,tsx}": "eslint --fix"
+    "**/*.{vue,js,jsx,ts,tsx}": "eslint --max-warnings 0 --fix"
   }
 }
