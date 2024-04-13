@@ -2,7 +2,7 @@ const constantRoutes: RouteType.RouteItem[] = [
   {
     name: "index",
     path: "/",
-    component: "layout"
+    component: "basic"
   }
 ];
 

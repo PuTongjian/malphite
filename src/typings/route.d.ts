@@ -10,9 +10,13 @@ declare namespace RouteType {
    | "/"
    | Exclude<KeyToPath<RouteKey>, "/index">
 
-  /** 路由组件类型 */
+  /**
+   * 路由组件类型
+   * basic - layout布局页面
+   * self - 自定义布局页面
+  */
   type RouteComponent =
-    | "layout"
+    | "basic"
     | "self"
 
   /** 路由描述 */
@@ -22,6 +26,7 @@ declare namespace RouteType {
     /** 缓存页面 */
     keepAlive?: boolean;
   }
+
   /** 自定义路由类型 */
   interface RouteInterface {
     /** 路由名称(路由唯一标识) */
