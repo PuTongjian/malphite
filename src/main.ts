@@ -12,4 +12,3 @@ function setupApp() {
 }
 
 setupApp();
-

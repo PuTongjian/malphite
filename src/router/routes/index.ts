@@ -1,11 +1,8 @@
-const constantRoutes: RouteType.RouteItem[] = [
+/** 静态路由 */
+export const constantRoutes: RouteType.RouteItem[] = [
   {
     name: "index",
     path: "/",
     component: "basic"
   }
-];
-
-export const routes: RouteType.RouteItem[] = [
-  ...constantRoutes
 ];

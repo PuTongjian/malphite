@@ -20,7 +20,7 @@ abstract class Route implements RouteType.RouteInterface {
   abstract toVueRoute(): RouteRecordRaw;
 }
 
-class LayoutRoute extends Route {
+class BasicRoute extends Route {
   constructor(routeItem: RouteType.RouteItem) {
     super(routeItem);
   }
@@ -38,5 +38,5 @@ class LayoutRoute extends Route {
 
 
 export function transformToVueRoute(routeItem: RouteType.RouteItem[]) {
-  return [new LayoutRoute(routeItem[0]).toVueRoute()] as RouteRecordRaw[];
+  return [new BasicRoute(routeItem[0]).toVueRoute()] as RouteRecordRaw[];
 }

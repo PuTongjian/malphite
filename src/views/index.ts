@@ -18,5 +18,3 @@ function getViewComponent() {
 }
 
 export const views = getViewComponent();
-
-
