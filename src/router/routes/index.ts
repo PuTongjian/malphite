@@ -3,6 +3,6 @@ export const constantRoutes: RouteType.RouteItem[] = [
   {
     name: "index",
     path: "/",
-    component: "basic"
+    component: "frontend-layout"
   }
 ];

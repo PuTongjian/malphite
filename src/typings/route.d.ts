@@ -12,11 +12,13 @@ declare namespace RouteType {
 
   /**
    * 路由组件类型
-   * basic - layout布局页面
+   * frontend-layout - 前端基本布局页面
+   * backend-layout - 后端基本布局页面
    * self - 自定义布局页面
   */
   type RouteComponent =
-    | "basic"
+    | "frontend-layout"
+    | "backend-layout"
     | "self"
 
   /** 路由描述 */
@@ -27,7 +29,7 @@ declare namespace RouteType {
     keepAlive?: boolean;
   }
 
-  /** 自定义路由类型 */
+  /** 自定义路由接口 */
   interface RouteInterface {
     /** 路由名称(路由唯一标识) */
     readonly name: RouteKey;
@@ -36,15 +38,26 @@ declare namespace RouteType {
     /** 路由组件类型 */
     readonly component: RouteComponent;
     /** 子路由 */
-    children?: RouteInterface[];
+    children: RouteRecordRaw[];
     /** 路由描述 */
     meta?: RouteMeta;
     /** 转换为vue路由 */
     toVueRoute: () => RouteRecordRaw;
   }
 
-  /** 自定义路由配置（JSON） */
-  type RouteItem = WithoutMethods<RouteInterface>;
+  /** 自定义路由配置项（JSON） */
+  type RouteItem = {
+    /** 路由名称(路由唯一标识)，根据此名称索引vue文件 */
+    readonly name: RouteKey;
+    /** 路由路径 */
+    readonly path: RoutePath;
+    /** 路由组件类型 */
+    readonly component: RouteComponent;
+    /** 子路由 */
+    children?: RouteItem[];
+    /** 路由描述 */
+    meta?: RouteMeta;
+  }
 
   type KeyToPath<Key extends string> = Key extends `${infer Left}_${infer Right}`
     ? KeyToPath<`${Left}/${Right}`>
