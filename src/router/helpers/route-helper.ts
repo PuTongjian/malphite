@@ -27,10 +27,11 @@ abstract class Route implements RouteType.RouteInterface {
   abstract toVueRoute(): RouteRecordRaw;
 }
 
-class BasicRoute extends Route {
+class FrontendLayoutRoute extends Route {
   constructor(routeItem: RouteType.RouteItem) {
     super(routeItem);
   }
+
   toVueRoute() {
     const { name, path, meta } = this;
     const route: RouteRecordRaw = {
@@ -51,7 +52,7 @@ class BasicRoute extends Route {
 }
 
 function routeFactory(routeItem: RouteType.RouteItem) {
-  return new BasicRoute(routeItem);
+  return new FrontendLayoutRoute(routeItem);
 }
 
 export function transformToVueRoute(routeItem: RouteType.RouteItem[]) {
