@@ -15,6 +15,8 @@ function getViewComponent() {
         .replace("/index.vue", "");
       viewComponents[routeKey] = importViews[key];
     });
+
+  return viewComponents;
 }
 
 export const views = getViewComponent();
