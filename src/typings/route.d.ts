@@ -11,15 +11,15 @@ declare namespace RouteType {
    | Exclude<KeyToPath<RouteKey>, "/index">
 
   /**
-   * 路由组件类型
-   * frontend-layout - 前端基本布局页面
-   * backend-layout - 后端基本布局页面
-   * self - 自定义布局页面
+   * 路由布局类型
+   * frontend - 前台基本布局页面
+   * backend - 后台基本布局页面
+   * none - 自定义布局页面
   */
-  type RouteComponent =
-    | "frontend-layout"
-    | "backend-layout"
-    | "self"
+  type LayoutType =
+    | "frontend"
+    | "backend"
+    | "none"
 
   /** 路由描述 */
   type RouteMeta = {
@@ -36,9 +36,9 @@ declare namespace RouteType {
     /** 路由路径 */
     readonly path: RoutePath;
     /** 路由组件类型 */
-    readonly component: RouteComponent;
+    readonly layout: LayoutType;
     /** 子路由 */
-    children: RouteRecordRaw[];
+    children: RouteInterface[];
     /** 路由描述 */
     meta?: RouteMeta;
     /** 转换为vue路由 */
@@ -52,7 +52,7 @@ declare namespace RouteType {
     /** 路由路径 */
     readonly path: RoutePath;
     /** 路由组件类型 */
-    readonly component: RouteComponent;
+    readonly layout: LayoutType;
     /** 子路由 */
     children?: RouteItem[];
     /** 路由描述 */

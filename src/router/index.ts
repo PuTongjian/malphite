@@ -1,6 +1,6 @@
 import type { App } from "vue";
-import { constantRoutes } from "@/router/routes";
-import { transformToVueRoute } from "./helpers/route-helper";
+import { constantRoutes } from "./routes";
+import { transformToVueRoute } from "./utils";
 
 import { createRouter, createWebHistory } from "vue-router";
 

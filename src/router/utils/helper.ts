@@ -1,22 +1,22 @@
 import type { RouteRecordRaw } from "vue-router";
 
-abstract class Route implements RouteType.RouteInterface {
+abstract class BaseRoute implements RouteType.RouteInterface {
   readonly name: RouteType.RouteKey;
   readonly path: RouteType.RoutePath;
-  readonly component: RouteType.RouteComponent;
+  readonly layout: RouteType.LayoutType;
   meta?: RouteType.RouteMeta;
-  _children: RouteRecordRaw[];
+  _children: BaseRoute[];
 
   constructor(routeItem: RouteType.RouteItem) {
-    const { name, path, component, meta } = routeItem;
+    const { name, path, layout, meta } = routeItem;
     this.name = name;
     this.path = path;
-    this.component = component;
+    this.layout = layout;
     this.meta = meta;
     this._children = [];
   }
 
-  set children(value: RouteRecordRaw[]) {
+  set children(value: BaseRoute[]) {
     this._children = value;
   }
 
@@ -27,7 +27,13 @@ abstract class Route implements RouteType.RouteInterface {
   abstract toVueRoute(): RouteRecordRaw;
 }
 
-class FrontendLayoutRoute extends Route {
+// class Route extends BaseRoute {
+//   constructor(routeItem: RouteType.RouteItem) {
+//     super(routeItem);
+//   }
+// }
+
+class FrontendLayoutRoute extends BaseRoute {
   constructor(routeItem: RouteType.RouteItem) {
     super(routeItem);
   }
@@ -60,7 +66,7 @@ export function transformToVueRoute(routeItem: RouteType.RouteItem[]) {
   const vueRoutes: RouteRecordRaw[] = [];
   for (const item of routeItem) {
     const route = routeFactory(item);
-    route.children = transformToVueRoute(item.children || []);
+    // route.children = transformToVueRoute(item.children || []);
     const vueRoute = route.toVueRoute();
     vueRoutes.push(vueRoute);
   }
