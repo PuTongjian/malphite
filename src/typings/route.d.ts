@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from "vue-router";
+import type { RouteRecordRaw, RouteComponent } from "vue-router";
 
 declare namespace RouteType {
   /** 路由KEY */
@@ -10,16 +10,19 @@ declare namespace RouteType {
    | "/"
    | Exclude<KeyToPath<RouteKey>, "/index">
 
+  /** 路由组件 */
+  type RawRouteComponent = RouteComponent | Lazy<RouteComponent>
+
   /**
    * 路由布局类型
    * frontend - 前台基本布局页面
    * backend - 后台基本布局页面
-   * none - 自定义布局页面
+   * self - 自定义布局页面
   */
   type LayoutType =
     | "frontend"
     | "backend"
-    | "none"
+    | "self"
 
   /** 路由描述 */
   type RouteMeta = {
@@ -37,6 +40,8 @@ declare namespace RouteType {
     readonly path: RoutePath;
     /** 路由组件类型 */
     readonly layout: LayoutType;
+    /** 路由组件 */
+    component: RawRouteComponent;
     /** 子路由 */
     children: RouteInterface[];
     /** 路由描述 */

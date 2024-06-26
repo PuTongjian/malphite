@@ -1,10 +1,12 @@
 <template>
   <div>
-    layout
+    backend-layout
+    <router-view />
   </div>
 </template>
 
 <script setup lang="ts">
+
 
 </script>
 

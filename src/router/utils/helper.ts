@@ -5,7 +5,8 @@ abstract class BaseRoute implements RouteType.RouteInterface {
   readonly path: RouteType.RoutePath;
   readonly layout: RouteType.LayoutType;
   meta?: RouteType.RouteMeta;
-  _children: BaseRoute[];
+  private _component: RouteType.RawRouteComponent;
+  private _children: BaseRoute[];
 
   constructor(routeItem: RouteType.RouteItem) {
     const { name, path, layout, meta } = routeItem;
@@ -13,7 +14,16 @@ abstract class BaseRoute implements RouteType.RouteInterface {
     this.path = path;
     this.layout = layout;
     this.meta = meta;
+    this._component = () => {};
     this._children = [];
+  }
+
+  set component(value: RouteType.RawRouteComponent) {
+    this._component = value;
+  }
+
+  get component() {
+    return this._component;
   }
 
   set children(value: BaseRoute[]) {
@@ -27,13 +37,7 @@ abstract class BaseRoute implements RouteType.RouteInterface {
   abstract toVueRoute(): RouteRecordRaw;
 }
 
-// class Route extends BaseRoute {
-//   constructor(routeItem: RouteType.RouteItem) {
-//     super(routeItem);
-//   }
-// }
-
-class FrontendLayoutRoute extends BaseRoute {
+class Route extends BaseRoute {
   constructor(routeItem: RouteType.RouteItem) {
     super(routeItem);
   }
@@ -43,22 +47,34 @@ class FrontendLayoutRoute extends BaseRoute {
     const route: RouteRecordRaw = {
       name,
       path,
-      component: () => import("@/layout/index.vue"),
+      component: this.component,
       meta,
-      children: [
-        {
-          path: "",
-          component: () => import("@/views/index/index.vue"),
-          children: this.children
-        }
-      ]
+      children: this.children
     };
     return route;
   }
 }
 
+// class LayoutRoute extends BaseRoute {
+//   constructor(routeItem: RouteType.RouteItem) {
+//     super(routeItem);
+//   }
+
+//   toVueRoute() {
+//     const { name, path, meta } = this;
+//     const route: RouteRecordRaw = {
+//       name,
+//       path,
+//       component: this.component,
+//       meta,
+//       children: this.children
+//     };
+//     return route;
+//   }
+// }
+
 function routeFactory(routeItem: RouteType.RouteItem) {
-  return new FrontendLayoutRoute(routeItem);
+  return new Route(routeItem);
 }
 
 export function transformToVueRoute(routeItem: RouteType.RouteItem[]) {
