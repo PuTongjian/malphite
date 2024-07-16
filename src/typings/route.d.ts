@@ -1,4 +1,5 @@
 import type { RouteRecordRaw, RouteComponent } from "vue-router";
+import { Component } from "vue";
 
 declare namespace RouteType {
   /** 路由KEY */
@@ -13,19 +14,23 @@ declare namespace RouteType {
   /** 路由组件 */
   type RawRouteComponent = RouteComponent | Lazy<RouteComponent>
 
+  /** 路由视图组件Key-Component */
+  type ViewComponentDic = Record<RouteKey, Lazy<Component>>;
+
   /**
    * 路由布局类型
-   * frontend - 前台基本布局页面
-   * backend - 后台基本布局页面
+   * basic - 基础（默认）布局页面
    * self - 自定义布局页面
   */
   type LayoutType =
-    | "frontend"
-    | "backend"
+    | "basic"
     | "self"
 
+  /** 路由布局组件Key-Component */
+  type LayoutComponentDic = Record<Exclude<LayoutType, "self">, Lazy<Component>>;
+
   /** 路由描述 */
-  type RouteMeta = {
+  interface RouteMeta {
     /** 路由标题 */
     title?: string;
     /** 缓存页面 */
@@ -33,25 +38,14 @@ declare namespace RouteType {
   }
 
   /** 自定义路由接口 */
-  interface RouteInterface {
-    /** 路由名称(路由唯一标识) */
-    readonly name: RouteKey;
-    /** 路由路径 */
-    readonly path: RoutePath;
-    /** 路由组件类型 */
-    readonly layout: LayoutType;
-    /** 路由组件 */
-    component: RawRouteComponent;
-    /** 子路由 */
-    children: RouteInterface[];
-    /** 路由描述 */
-    meta?: RouteMeta;
+  interface RouteHelperInterface {
+    // setViewComponentName(asyncComponent: Lazy<Component>, name: string)
     /** 转换为vue路由 */
     toVueRoute: () => RouteRecordRaw;
   }
 
   /** 自定义路由配置项（JSON） */
-  type RouteItem = {
+  interface RouteItem {
     /** 路由名称(路由唯一标识)，根据此名称索引vue文件 */
     readonly name: RouteKey;
     /** 路由路径 */

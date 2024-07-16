@@ -1,3 +1,4 @@
+import RouteType from "@/typings/route";
 import type { Component } from "vue";
 
 type ViewComponents = Record<string, () => Promise<Component>>
@@ -16,7 +17,8 @@ function getViewComponent() {
       viewComponents[routeKey] = importViews[key];
     });
 
-  return viewComponents;
+  return viewComponents as RouteType.ViewComponentDic;
 }
 
 export const views = getViewComponent();
+

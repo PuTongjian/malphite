@@ -1,2 +1,3 @@
-export const backendLayout = () => import("./backend-layout/index.vue");
-export const frontendLayout = () => import("./frontend-layout/index.vue");
+export const layouts: RouteType.LayoutComponentDic = {
+  basic: () => import("./basic-layout/index.vue")
+};

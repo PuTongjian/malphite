@@ -36,6 +36,7 @@ module.exports = {
     "indent": [
       "error",
       2,
+      { "SwitchCase": 1 }
     ],
     // 行尾风格
     "linebreak-style": ["error", process.platform === "win32"? "windows": "unix"],
