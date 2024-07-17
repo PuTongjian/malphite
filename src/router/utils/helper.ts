@@ -3,8 +3,8 @@ import { Component } from "vue";
 import { views } from "@/views";
 import { layouts } from "@/layout";
 
-
-abstract class RouteHelper implements RouteType.RouteHelperInterface {
+/** 自定义路由转换类 */
+abstract class RouteHelper {
   readonly routeItem: RouteType.RouteItem;
   _children: RouteRecordRaw[];
 
@@ -21,13 +21,21 @@ abstract class RouteHelper implements RouteType.RouteHelperInterface {
     this._children = children;
   }
 
-  async setComponentName(asyncComponent: Lazy<Component>, name: string) {
+
+  /**
+   * Sets the name property of a component obtained from an async component function.
+   *
+   * @param {() => Promise<Component>} asyncComponent - The async component function that returns a Promise of a Component.
+   * @param {string} name - The name to set on the component.
+   * @return {Promise<{ default: Component }>} - A Promise that resolves to the component with the name property set.
+   */
+  async setComponentName(asyncComponent: RouteType.LazyComponent, name: string): Promise<{ default: Component }> {
     const component = (await asyncComponent()) as { default: Component };
     Object.assign(component.default, { name });
     return component;
   }
 
-  async getComponent(layoutType: RouteType.LayoutType) {
+  getComponent(layoutType: RouteType.LayoutType) {
     if (layoutType === "self") return () => this.setComponentName(views[this.routeItem.name], this.routeItem.name) as Promise<Component>;
     else return () => this.setComponentName(layouts[layoutType], layoutType) as Promise<Component>;
   }

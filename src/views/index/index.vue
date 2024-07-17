@@ -1,6 +1,6 @@
 <template>
   <div>
-    222222
+    index
   </div>
 </template>
 

@@ -1,7 +1,6 @@
 import RouteType from "@/typings/route";
-import type { Component } from "vue";
 
-type ViewComponents = Record<string, () => Promise<Component>>
+type ViewComponents = Record<string, RouteType.LazyComponent>
 
 function getViewComponent() {
   const importViews = import.meta.glob("./**/index.vue") as ViewComponents;

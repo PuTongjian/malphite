@@ -1,4 +1,3 @@
-import type { RouteRecordRaw, RouteComponent } from "vue-router";
 import { Component } from "vue";
 
 declare namespace RouteType {
@@ -11,11 +10,11 @@ declare namespace RouteType {
    | "/"
    | Exclude<KeyToPath<RouteKey>, "/index">
 
-  /** 路由组件 */
-  type RawRouteComponent = RouteComponent | Lazy<RouteComponent>
+
+  type LazyComponent = () => Promise<{ default: Component }>;
 
   /** 路由视图组件Key-Component */
-  type ViewComponentDic = Record<RouteKey, Lazy<Component>>;
+  type ViewComponentDic = Record<RouteKey, LazyComponent>;
 
   /**
    * 路由布局类型
@@ -27,7 +26,7 @@ declare namespace RouteType {
     | "self"
 
   /** 路由布局组件Key-Component */
-  type LayoutComponentDic = Record<Exclude<LayoutType, "self">, Lazy<Component>>;
+  type LayoutComponentDic = Record<Exclude<LayoutType, "self">, LazyComponent>;
 
   /** 路由描述 */
   interface RouteMeta {
@@ -35,13 +34,6 @@ declare namespace RouteType {
     title?: string;
     /** 缓存页面 */
     keepAlive?: boolean;
-  }
-
-  /** 自定义路由接口 */
-  interface RouteHelperInterface {
-    // setViewComponentName(asyncComponent: Lazy<Component>, name: string)
-    /** 转换为vue路由 */
-    toVueRoute: () => RouteRecordRaw;
   }
 
   /** 自定义路由配置项（JSON） */
