@@ -1,5 +1,4 @@
 import type { RouteRecordRaw } from "vue-router";
-import { Component } from "vue";
 import { views } from "@/views";
 import { layouts } from "@/layout";
 
@@ -23,26 +22,32 @@ abstract class RouteHelper {
 
 
   /**
-   * Sets the name property of a component obtained from an async component function.
-   *
-   * @param {() => Promise<Component>} asyncComponent - The async component function that returns a Promise of a Component.
-   * @param {string} name - The name to set on the component.
-   * @return {Promise<{ default: Component }>} - A Promise that resolves to the component with the name property set.
+   * Set the name of the component to the given name.
+   * @param asyncComponent The lazy component to set the name of.
+   * @param name The name to set.
+   * @returns The component with the name set.
    */
-  async setComponentName(asyncComponent: RouteType.LazyComponent, name: string): Promise<{ default: Component }> {
-    const component = (await asyncComponent()) as { default: Component };
+  async setComponentName(asyncComponent: RouteType.LazyComponent, name: string): Promise<RouteType.ViewComponent> {
+    const component = (await asyncComponent());
     Object.assign(component.default, { name });
     return component;
   }
 
-  getComponent(layoutType: RouteType.LayoutType) {
-    if (layoutType === "self") return () => this.setComponentName(views[this.routeItem.name], this.routeItem.name) as Promise<Component>;
-    else return () => this.setComponentName(layouts[layoutType], layoutType) as Promise<Component>;
+  /**
+   * Get the component for the given layout type.
+   * @param layoutType The layout type to get the component for.
+   * @returns The component for the given layout type.
+   */
+  getComponent(layoutType: RouteType.LayoutType): RouteType.LazyComponent {
+    return layoutType === "self"
+      ? () => this.setComponentName(views[this.routeItem.name], this.routeItem.name)
+      : () => this.setComponentName(layouts[layoutType], layoutType);
   }
 
   abstract toVueRoute(): RouteRecordRaw;
 }
 
+/** 自定义布局路由转化类 */
 class SelfRouteHelper extends RouteHelper {
   constructor(routeItem: RouteType.RouteItem) {
     super(routeItem);
@@ -61,6 +66,7 @@ class SelfRouteHelper extends RouteHelper {
   }
 }
 
+/** 基础布局路由转化类 */
 class LayoutRouteHelper extends RouteHelper {
   constructor(routeItem: RouteType.RouteItem) {
     super(routeItem);
@@ -84,7 +90,7 @@ class LayoutRouteHelper extends RouteHelper {
   }
 }
 
-
+/** 路由工厂类 */
 class RouteHelperFactory {
   static create(routeItem: RouteType.RouteItem) {
     switch (routeItem.layout) {
@@ -96,14 +102,21 @@ class RouteHelperFactory {
   }
 }
 
-export function transformToVueRoute(routeItems: RouteType.RouteItem[]) {
+/**
+ * Transforms an array of custom route items into an array of Vue routes.
+ *
+ * @param routeItems - The array of custom route items to transform.
+ * @returns The array of Vue routes.
+ */
+export function transformToVueRoute(routeItems: RouteType.RouteItem[]): RouteRecordRaw[] {
   const vueRoutes: RouteRecordRaw[] = [];
-  for (const item of routeItems) {
 
+  for (const item of routeItems) {
     const route = RouteHelperFactory.create(item);
     route.children = transformToVueRoute(item.children || []);
     const vueRoute = route.toVueRoute();
     vueRoutes.push(vueRoute);
   }
+
   return vueRoutes;
 }

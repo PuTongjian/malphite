@@ -10,8 +10,11 @@ declare namespace RouteType {
    | "/"
    | Exclude<KeyToPath<RouteKey>, "/index">
 
+  /** 路由视图组件 */
+  type ViewComponent = { default: Component };
 
-  type LazyComponent = () => Promise<{ default: Component }>;
+  /** 路由视图组件（懒加载） */
+  type LazyComponent = Lazy<ViewComponent>;
 
   /** 路由视图组件Key-Component */
   type ViewComponentDic = Record<RouteKey, LazyComponent>;
