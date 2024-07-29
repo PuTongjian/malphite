@@ -4,6 +4,7 @@ lib
 *.md
 *.woff
 *.ttf
+*.html
 .vscode
 .idea
 /dist/
