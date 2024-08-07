@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import Vue from "@vitejs/plugin-vue";
+import UnoCSS from "unocss/vite";
 import { resolve } from "node:path";
 import Components from "unplugin-vue-components/vite";
 
@@ -15,6 +16,8 @@ export default defineConfig({
       exclude: [/node_modules/],
       dirs: ["src/components"]
     }),
+
+    UnoCSS()
   ],
   resolve: {
     alias: {
