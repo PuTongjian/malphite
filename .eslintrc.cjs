@@ -50,6 +50,10 @@ module.exports = {
       "error",
       "always"
     ],
+    // 数组两端不允许空格
+    "array-bracket-spacing": ["error", "never"],
+    // 对象两端总是有空格
+    "object-curly-spacing": ["error","always"],
     // 不允许存在多余的空格
     "no-trailing-spaces": "error",
     // 要求组件名称必须是多个单词组合
@@ -62,7 +66,7 @@ module.exports = {
     // 不允许使用console
     "no-console": 2,
     // 不允许存在多个空行，最多2行
-    "no-multiple-empty-lines": [1, {"max": 2}],
+    "no-multiple-empty-lines": [1, { "max": 2 }],
     // 文件末尾强制换行
     "eol-last": 2,
     // 使用 === 替代 ==

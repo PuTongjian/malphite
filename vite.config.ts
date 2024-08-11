@@ -11,10 +11,10 @@ export default defineConfig({
 
     Components({
       extensions: ["vue"],
-      dts: "src/typings/components.d.ts",
+      dts: "typings/components.d.ts",
       include: [/\.vue$/, /\.vue\?vue/],
       exclude: [/node_modules/],
-      dirs: ["src/components"]
+      dirs: ["src/components"],
     }),
 
     UnoCSS()

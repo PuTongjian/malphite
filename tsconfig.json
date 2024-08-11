@@ -24,17 +24,13 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
+      ]
     },
-    // "typeRoots": [
-    //   "node_modules/@types",
-    //   "src/typings"
-    // ]
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.d.ts",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "typings/**/*.d.ts",
   ],
   "exclude": [
     "dist",

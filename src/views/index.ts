@@ -1,5 +1,3 @@
-import RouteType from "@/typings/route";
-
 type ViewComponents = Record<string, RouteType.LazyComponent>
 
 function getViewComponent() {
