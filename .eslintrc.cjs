@@ -63,6 +63,7 @@ module.exports = {
         ignores: ["index"],
       },
     ],
+    "vue/html-indent": ["error", 2],
     // 不允许使用console
     "no-console": 2,
     // 不允许存在多个空行，最多2行
