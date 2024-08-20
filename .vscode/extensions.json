@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "antfu.iconify",
+    "antfu.theme-vitesse",
+    "antfu.unocss",
+    "chakrounanas.turbo-console-log",
+    "codeium.codeium",
+    "dbaeumer.vscode-eslint",
+    "donjayamanne.githistory",
+    "lihuiwang.vue-alias-skip",
+    "ms-vscode-remote.remote-ssh",
+    "pkief.material-icon-theme",
+    "sdras.vue-vscode-snippets",
+    "simonhe.common-intellisense",
+    "vue.volar",
+    "xabikos.javascriptsnippets",
+  ]
+}

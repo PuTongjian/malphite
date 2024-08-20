@@ -1,2 +1,28 @@
 {
+  // vscode 基础配置
+  "editor.fontSize": 18,
+  "editor.mouseWheelZoom": false, // 静止鼠标滚轮缩放
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true, // tab转空格
+  "editor.formatOnSave": true,
+  // vscode 插件
+  "workbench.iconTheme": "material-icon-theme", // pkief.material-icon-theme 插件图标
+  "workbench.colorTheme": "Vitesse Dark", // antfu.theme-vitesse 插件主题
+  // eslint
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.enable": true,
+  "eslint.format.enable": true,
+  "eslint.run": "onType", //实时检测反馈
+  // 默认格式化
+  "[vue]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
 }
