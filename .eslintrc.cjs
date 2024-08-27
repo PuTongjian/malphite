@@ -56,14 +56,6 @@ module.exports = {
     "object-curly-spacing": ["error","always"],
     // 不允许存在多余的空格
     "no-trailing-spaces": "error",
-    // 要求组件名称必须是多个单词组合
-    "vue/multi-word-component-names": [
-      "error",
-      {
-        ignores: ["index"],
-      },
-    ],
-    "vue/html-indent": ["error", 2],
     // 不允许使用console
     "no-console": 2,
     // 不允许存在多个空行，最多2行
@@ -75,6 +67,22 @@ module.exports = {
     // 禁止变量声明遮蔽外部作用域中已声明的变量
     "@typescript-eslint/no-shadow": "error",
     // 关闭any类型警告
-    "@typescript-eslint/no-explicit-any": "off"
+    "@typescript-eslint/no-explicit-any": "off",
+    // 要求组件名称必须是多个单词组合
+    "vue/multi-word-component-names": [
+      "error",
+      {
+        ignores: ["index"],
+      },
+    ],
+    "vue/html-indent": ["error", 2],
+    "vue/v-on-function-call": ["error", "never"],
+    "vue/no-ref-object-destructure": "error",
+    "vue/component-tags-order": ["error", {
+      "order": ["template", "script", "style"]
+    }],
+    "vue/space-infix-ops": "error",
+    "vue/space-in-parens": ["error", "never"],
+    "vue/prefer-template": "error"
   }
 };
