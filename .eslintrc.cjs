@@ -83,6 +83,75 @@ module.exports = {
     }],
     "vue/space-infix-ops": "error",
     "vue/space-in-parens": ["error", "never"],
-    "vue/prefer-template": "error"
+    "vue/prefer-template": "error",
+    "vue/attribute-hyphenation": ["error", "always", {
+      "ignore": []
+    }],
+    "vue/first-attribute-linebreak": ["error", {
+      "singleline": "beside",
+      "multiline": "below"
+    }],
+    "vue/html-closing-bracket-newline": [
+      "error",
+      {
+        "singleline": "never",
+        "multiline": "never",
+        "selfClosingTag": {
+          "singleline": "never",
+          "multiline": "never"
+        }
+      }
+    ],
+    "vue/html-closing-bracket-spacing": ["error", {
+      "startTag": "never",
+      "endTag": "never",
+      "selfClosingTag": "always"
+    }],
+    "vue/html-quotes": ["error", "double", { "avoidEscape": false }],
+    "vue/max-attributes-per-line": ["error", {
+      "singleline": {
+        "max": 2
+      },
+      "multiline": {
+        "max": 1
+      }
+    }],
+    "vue/multiline-html-element-content-newline": ["error", {
+      "ignoreWhenEmpty": true,
+      "ignores": [],
+      "allowEmptyLines": false
+    }],
+    "vue/singleline-html-element-content-newline": ["error", {
+      "ignoreWhenNoAttributes": true,
+      "ignoreWhenEmpty": true,
+      "ignores": [],
+      "externalIgnores": []
+    }],
+    "vue/mustache-interpolation-spacing": ["error", "always"],
+    "vue/no-multi-spaces": ["error", { "ignoreProperties": false }],
+    "vue/no-spaces-around-equal-signs-in-attribute": ["error"],
+    "vue/no-template-shadow": ["error", { "allow": [] }],
+    "vue/require-default-prop": "error",
+    "vue/v-slot-style": ["error", {
+      "atComponent": "shorthand",
+      "default": "shorthand",
+      "named": "shorthand",
+    }],
+    "vue/attributes-order": ["error", {
+      "order": [
+        "DEFINITION",
+        "LIST_RENDERING",
+        "CONDITIONALS",
+        "RENDER_MODIFIERS",
+        "GLOBAL",
+        ["UNIQUE", "SLOT"],
+        "TWO_WAY_BINDING",
+        "OTHER_DIRECTIVES",
+        "OTHER_ATTR",
+        "EVENTS",
+        "CONTENT"
+      ],
+      "alphabetical": false
+    }]
   }
 };
