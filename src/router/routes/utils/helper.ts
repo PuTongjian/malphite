@@ -59,7 +59,7 @@ class SelfRouteHelper extends RouteHelper {
       name: this.routeItem.name,
       path: this.routeItem.path,
       component: this.getComponent(this.routeItem.layout),
-      meta: this.routeItem.meta? {...this.routeItem.meta}: {},
+      meta: this.routeItem.meta? { ...this.routeItem.meta }: {},
       children: this.children
     };
     return vueRoute;
