@@ -5,6 +5,7 @@ import Vue from "@vitejs/plugin-vue";
 import UnoCSS from "unocss/vite";
 import Components from "unplugin-vue-components/vite";
 import ElegantVueRouter from "@elegant-router/vue/vite";
+// import { setupVitePlugins } from "./build/plugins";
 
 
 // https://vitejs.dev/config/
