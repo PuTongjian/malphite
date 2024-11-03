@@ -17,6 +17,7 @@ declare module "@elegant-router/types" {
   export type RouteMap = {
     "root": "/";
     "not-found": "/:pathMatch(.*)*";
+    "404": "/404";
     "index": "/index";
   };
 
@@ -49,6 +50,7 @@ declare module "@elegant-router/types" {
    */
   export type FirstLevelRouteKey = Extract<
     RouteKey,
+    | "404"
     | "index"
   >;
 
@@ -66,6 +68,7 @@ declare module "@elegant-router/types" {
    */
   export type LastLevelRouteKey = Extract<
     RouteKey,
+    | "404"
     | "index"
   >;
 

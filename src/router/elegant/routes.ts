@@ -7,6 +7,14 @@ import type { GeneratedRoute } from '@elegant-router/types';
 
 export const generatedRoutes: GeneratedRoute[] = [
   {
+    name: '404',
+    path: '/404',
+    component: 'layout.basic$view.404',
+    meta: {
+      title: '404'
+    }
+  },
+  {
     name: 'index',
     path: '/index',
     component: 'layout.basic$view.index',

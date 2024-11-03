@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-
 declare namespace Env {
   /** Interface for import.meta */
   interface CustomImportMetaEnv extends ImportMetaEnv {
@@ -7,9 +5,11 @@ declare namespace Env {
     readonly VITE_BASE_URL: string
     /** The base url of the backend service */
     readonly VITE_SERVICE_BASE_URL: string
+    /** the home route key */
+    readonly VITE_ROUTE_HOME: import("@elegant-router/types").LastLevelRouteKey
   }
 }
 
 interface ImportMeta {
-  env: Env.CustomImportMetaEnv
+  readonly env: Env.CustomImportMetaEnv
 }

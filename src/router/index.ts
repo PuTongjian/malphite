@@ -1,12 +1,11 @@
 import type { App } from "vue";
-import { constantRoutes } from "./routes";
-import { transformToVueRoute } from "./routes/utils";
+import { createBuiltinVueRoutes } from "./routes/builtin";
 
 import { createRouter, createWebHistory } from "vue-router";
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes: transformToVueRoute(constantRoutes)
+  routes: createBuiltinVueRoutes()
 });
 
 export function setupRouter(app: App) {

@@ -163,6 +163,7 @@ function transformElegantRouteToVueRoute(
 const routeMap: RouteMap = {
   "root": "/",
   "not-found": "/:pathMatch(.*)*",
+  "404": "/404",
   "index": "/index"
 };
 

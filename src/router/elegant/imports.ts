@@ -13,5 +13,6 @@ export const layouts: Record<RouteLayout, RouteComponent | (() => Promise<RouteC
 };
 
 export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<RouteComponent>)> = {
+  404: () => import("@/views/_builtin/404/index.vue"),
   index: () => import("@/views/index/index.vue"),
 };
