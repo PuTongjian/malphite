@@ -5,6 +5,7 @@
   "editor.tabSize": 2,
   "editor.insertSpaces": true, // tab转空格
   "editor.formatOnSave": true,
+  "files.eol": "\n",
   // vscode 插件
   "workbench.iconTheme": "material-icon-theme", // pkief.material-icon-theme 插件图标
   "workbench.colorTheme": "Vitesse Dark", // antfu.theme-vitesse 插件主题
