@@ -39,7 +39,7 @@ module.exports = {
       { "SwitchCase": 1 }
     ],
     // 行尾风格
-    "linebreak-style": ["error", process.platform === "win32"? "windows": "unix"],
+    "linebreak-style": ["error", "unix"],
     // 引号为双引号
     "quotes": [
       "error",
