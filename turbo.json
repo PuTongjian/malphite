@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "scripts/*/src/**/*.ts"
+  ],
+  "tasks": {
+    "dev": {
+      "persistent": true,
+      "cache": false
+    }
+  }
+}

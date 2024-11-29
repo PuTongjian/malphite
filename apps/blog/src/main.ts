@@ -4,7 +4,6 @@ import { setupRouter } from "@/router";
 import { setupDiscreteApi } from "./utils";
 import NaiveUi from "naive-ui";
 
-
 import "virtual:uno.css";
 import "@/styles/reset.css";
 import "@/styles/global.scss";

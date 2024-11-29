@@ -56,8 +56,6 @@ module.exports = {
     "object-curly-spacing": ["error","always"],
     // 不允许存在多余的空格
     "no-trailing-spaces": "error",
-    // 不允许使用console
-    "no-console": 2,
     // 不允许存在多个空行，最多2行
     "no-multiple-empty-lines": [1, { "max": 2 }],
     // 文件末尾强制换行

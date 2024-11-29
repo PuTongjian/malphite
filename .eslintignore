@@ -16,3 +16,4 @@ Dockerfile
 .local
 package.json
 !.env-config.ts
+**/dist/**

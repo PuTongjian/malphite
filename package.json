@@ -3,37 +3,29 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
-    "dev": "vite --mode development",
+    "dev": "turbo-run dev",
     "build": "vue-tsc && vite build --mode production",
     "preview": "vite preview",
     "type:check": "vue-tsc --noEmit --skipLibCheck",
     "lint:eslint": "eslint --max-warnings 0  \"src/**/*.{vue,ts}\" --fix",
     "lint-staged": "lint-staged",
-    "prepare": "husky"
-  },
-  "dependencies": {
-    "vue": "^3.4.21",
-    "vue-router": "4"
+    "prepare": "husky",
+    "postinstall": "pnpm -r run stub --if-present"
   },
   "devDependencies": {
-    "@elegant-router/vue": "^0.3.8",
+    "@malphite/turbo-run": "workspace:*",
     "@types/node": "^20.12.3",
     "@typescript-eslint/eslint-plugin": "^7.5.0",
     "@typescript-eslint/parser": "^7.5.0",
-    "@vitejs/plugin-vue": "^5.0.4",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.24.0",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.2",
-    "naive-ui": "^2.39.0",
-    "sass": "^1.77.8",
-    "typescript": "^5.2.2",
-    "unocss": "^0.61.9",
-    "unplugin-auto-import": "^0.18.2",
-    "unplugin-vue-components": "^0.26.0",
-    "vite": "^5.2.0",
-    "vue-tsc": "^2.0.6"
+    "turbo": "^2.3.0",
+    "typescript": "catalog:",
+    "unbuild": "catalog:"
   },
   "lint-staged": {
     "**/*.{vue,js,jsx,ts,tsx}": "eslint --max-warnings 0 --fix"
