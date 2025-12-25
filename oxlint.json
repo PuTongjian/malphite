@@ -4,14 +4,7 @@
     "**/node_modules",
     "**/dist"
   ],
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 80,
-    "quoteStyle": "double",
-    "trailingComma": "none"
-  },
+  "plugins": null,
   "rules": {
     "no-var": "error",
   }
