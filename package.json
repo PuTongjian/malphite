@@ -9,6 +9,7 @@
     "dev": "r"
   },
   "devDependencies": {
-    "@malphite/cli": "workspace:^"
+    "@malphite/cli": "workspace:^",
+    "oxlint": "^1.35.0"
   }
 }

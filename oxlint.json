@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "**/node_modules",
+    "**/dist"
+  ],
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80,
+    "quoteStyle": "double",
+    "trailingComma": "none"
+  },
+  "rules": {
+    "no-var": "error",
+  }
+}
