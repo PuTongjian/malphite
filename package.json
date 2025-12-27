@@ -2,14 +2,14 @@
   "name": "malphite",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "author": "",
   "license": "ISC",
+  "author": "",
+  "main": "index.js",
   "scripts": {
     "dev": "r"
   },
   "devDependencies": {
-    "@malphite/cli": "workspace:^",
-    "oxlint": "^1.35.0"
+    "@biomejs/biome": "2.3.10",
+    "@malphite/cli": "workspace:^"
   }
 }
