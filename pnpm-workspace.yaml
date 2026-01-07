@@ -1,2 +1,5 @@
 packages:
   - tools/*
+  
+catalog:
+  clipanion: 4.0.0-rc.4

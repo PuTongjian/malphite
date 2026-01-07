@@ -1,12 +1,13 @@
-import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const scriptsFolder = join(fileURLToPath(import.meta.url), "..", "..");
 const scriptSrcFolder = join(scriptsFolder, "src");
 const projectRoot = join(scriptsFolder, "..", "..");
 
-const [node, _self, file] = process.argv;
+const [node, _self, file, ...options] = process.argv;
 
 if (!file) {
   console.error(`Please provide a file to run, e.g. 'run src/index.{js/ts}'`);
@@ -55,4 +56,6 @@ if (!scriptLocation) {
 // const nodeOptions = []
 
 // if (scriptLocation.endsWith('.ts') || scriptLocation)
-const spawn = require("child_process").spawn;
+spawn(node, [scriptLocation, ...options], {
+  stdio: "inherit",
+});

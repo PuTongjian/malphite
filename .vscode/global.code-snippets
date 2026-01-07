@@ -1,0 +1,14 @@
+{
+  "snippet:import": {
+    "scope": "javascript,typescript",
+    "prefix": "im",
+    "body": ["import { $2 } from '$1';"],
+    "description": "Import a module"
+  },
+  "snippet:export-all": {
+    "scope": "javascript,typescript",
+    "prefix": "ex",
+    "body": ["export * from '$1';"],
+    "description": "Export a module"
+  }
+}
