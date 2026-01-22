@@ -1,21 +1,11 @@
-import { Cli, Command, Option } from "clipanion";
-
-export class MalphiteCommand extends Command {
-  name = Option.String();
-
-  async execute() {
-    this.context.stdout.write(`hello ${this.name}\n`);
-  }
-}
-
-const [node, file, ...options] = process.argv;
-console.log({ node, file, options });
+import { Cli } from "clipanion";
 
 const cli = new Cli({
-  binaryLabel: `Malphite CLI`,
-  binaryName: `${node} ${file}`,
-  binaryVersion: `1.0.0`,
+  binaryName: "malphite",
+  binaryVersion: "0.0.1",
+  binaryLabel: "Malphite CLI",
+  enableColors: true,
+  enableCapture: true,
 });
 
-cli.register(MalphiteCommand);
-cli.runExit(options);
+await cli.runExit(process.argv.slice(2));

@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@types/node':
+      specifier: ^22.0.0
+      version: 22.19.7
     clipanion:
       specifier: 4.0.0-rc.4
       version: 4.0.0-rc.4
@@ -20,6 +23,9 @@ importers:
       '@malphite/cli':
         specifier: workspace:^
         version: link:tools/cli
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.19.7
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -87,6 +93,9 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@types/node@22.19.7':
+    resolution: {integrity: sha512-MciR4AKGHWl7xwxkBa6xUGxQJ4VBOmPTF7sL+iGzuahOFaO0jHCsuEfS80pan1ef4gWId1oWOweIhrDEYLuaOw==}
 
   ansi-escapes@7.2.0:
     resolution: {integrity: sha512-g6LhBsl+GBPRWGWsBtutpzBYuIIdBkLEvad5C/va/74Db018+5TZiyA26cZJAr3Rft5lprVqOIPxf5Vid6tqAw==}
@@ -231,6 +240,9 @@ packages:
   typanion@3.14.0:
     resolution: {integrity: sha512-ZW/lVMRabETuYCd9O9ZvMhAh8GslSqaUjxmK/JLPCh6l73CvLBiuXswj/+7LdnWOgYsQ130FqLzFz5aGT4I3Ug==}
 
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
   wrap-ansi@9.0.2:
     resolution: {integrity: sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==}
     engines: {node: '>=18'}
@@ -276,6 +288,10 @@ snapshots:
 
   '@biomejs/cli-win32-x64@2.3.10':
     optional: true
+
+  '@types/node@22.19.7':
+    dependencies:
+      undici-types: 6.21.0
 
   ansi-escapes@7.2.0:
     dependencies:
@@ -406,6 +422,8 @@ snapshots:
       is-number: 7.0.0
 
   typanion@3.14.0: {}
+
+  undici-types@6.21.0: {}
 
   wrap-ansi@9.0.2:
     dependencies:
