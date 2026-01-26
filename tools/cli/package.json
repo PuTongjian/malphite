@@ -15,5 +15,8 @@
     "clipanion": "catalog:",
     "ts-node": "catalog:",
     "typescript": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
   }
 }

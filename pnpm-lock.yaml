@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@types/node':
+      specifier: ^22.0.0
+      version: 22.19.7
     clipanion:
       specifier: 4.0.0-rc.4
       version: 4.0.0-rc.4
@@ -26,12 +29,18 @@ importers:
       '@malphite/cli':
         specifier: workspace:^
         version: link:tools/cli
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.19.7
       husky:
         specifier: ^9.1.7
         version: 9.1.7
       lint-staged:
         specifier: ^16.2.7
         version: 16.2.7
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
 
   tools/cli:
     dependencies:
@@ -44,6 +53,10 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.19.7
 
 packages:
 

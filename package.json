@@ -5,16 +5,22 @@
   "license": "ISC",
   "author": "",
   "main": "index.js",
+  "engines": {
+    "node": ">22.0.0"
+  },
   "scripts": {
     "dev": "r",
     "prepare": "husky",
+    "typecheck": "tsc -b tsconfig.json --verbose",
     "lint-staged": "lint-staged"
   },
   "devDependencies": {
+    "typescript": "catalog:",
     "@biomejs/biome": "2.3.10",
     "@malphite/cli": "workspace:^",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.7"
+    "lint-staged": "^16.2.7",
+    "@types/node": "catalog:"
   },
   "lint-staged": {
     "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [

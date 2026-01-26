@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node", "build-config"],
+    "types": ["node"],
     "composite": true
   }
 }
