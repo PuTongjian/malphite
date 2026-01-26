@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptsFolder = join(fileURLToPath(import.meta.url), "..", "..");
 const scriptSrcFolder = join(scriptsFolder, "src");
 const projectRoot = join(scriptsFolder, "..", "..");
+const loader = join(scriptsFolder, "register.js");
 
 const [node, _self, file, ...options] = process.argv;
 
@@ -53,9 +54,19 @@ if (!scriptLocation) {
   process.exit(1);
 }
 
-// const nodeOptions = []
+const nodeOptions = [];
 
-// if (scriptLocation.endsWith('.ts') || scriptLocation)
-spawn(node, [scriptLocation, ...options], {
+if (
+  scriptLocation.endsWith(".ts") ||
+  scriptLocation.startsWith(scriptsFolder)
+) {
+  nodeOptions.unshift(`--import=${pathToFileURL(loader)}`);
+} else {
+  nodeOptions.unshift("--experimental-specifier-resolution=node");
+}
+
+spawn(node, [...nodeOptions, scriptLocation, ...options], {
   stdio: "inherit",
+}).on("exit", (code) => {
+  process.exit(code ?? 0);
 });
