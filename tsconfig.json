@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
-    // ========== 严格性检查 / Strictness Checks ==========
-    // 启用所有严格的类型检查选项 / Enable all strict type-checking options
+    // 启用所有严格的类型检查选项
+    // Enable all strict type-checking options
     "strict": true,
-    // 使用 verbatim 模块语法，在导入导出时保留原始的导入导出语句 / Emit verbatim module syntax for imports/exports
+    // 使用 verbatim 模块语法，在导入导出时保留原始的导入导出语句
+    // Emit verbatim module syntax for imports/exports
     "verbatimModuleSyntax": true,
-    // 禁用不精确的可选属性类型（目前关闭以提高灵活性）/ Disable exact optional property types for flexibility
+    // 禁用不精确的可选属性类型（目前关闭以提高灵活性）
+    // Disable exact optional property types for flexibility
     "exactOptionalPropertyTypes": false,
     // 禁止 switch 语句中的 fall-through 情况 / Disallow fall-through cases in switch statements
     "noFallthroughCasesInSwitch": true,
