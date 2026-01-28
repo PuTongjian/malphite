@@ -9,21 +9,29 @@
     // 禁用不精确的可选属性类型（目前关闭以提高灵活性）
     // Disable exact optional property types for flexibility
     "exactOptionalPropertyTypes": false,
-    // 禁止 switch 语句中的 fall-through 情况 / Disallow fall-through cases in switch statements
+    // 禁止 switch 语句中的 fall-through 情况
+    // Disallow fall-through cases in switch statements
     "noFallthroughCasesInSwitch": true,
-    // 禁止隐式覆盖基类方法 / Disallow implicit method overrides
+    // 禁止隐式覆盖基类方法
+    // Disallow implicit method overrides
     "noImplicitOverride": true,
-    // 禁止函数中不返回值的情况 / Disallow implicit return in functions
+    // 禁止函数中不返回值的情况
+    // Disallow implicit return in functions
     "noImplicitReturns": true,
-    // 禁止未使用的局部变量 / Disallow unused local variables
+    // 禁止未使用的局部变量
+    // Disallow unused local variables
     "noUnusedLocals": true,
-    // 禁止未使用的函数参数 / Disallow unused function parameters
+    // 禁止未使用的函数参数
+    // Disallow unused function parameters
     "noUnusedParameters": true,
-    // 允许通过索引签名访问属性（目前关闭）/ Allow access to properties via index signatures
+    // 允许通过索引签名访问属性（目前关闭）
+    // Allow access to properties via index signatures
     "noPropertyAccessFromIndexSignature": false,
-    // 允许未检查的索引访问（目前关闭）/ Allow unchecked indexed access
+    // 允许未检查的索引访问（目前关闭）
+    // Allow unchecked indexed access
     "noUncheckedIndexedAccess": false,
-    // 跳过第三方库的类型检查 / Skip type checking of third-party declaration files
+    // 跳过第三方库的类型检查
+    // Skip type checking of third-party declaration files
     "skipLibCheck": true,
 
     // ========== 模块配置 / Module Configuration ==========
