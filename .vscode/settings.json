@@ -13,6 +13,9 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.biome": "explicit"
   },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
 
   // 控制相关文件嵌套展示
   "explorer.fileNesting.enabled": true,
