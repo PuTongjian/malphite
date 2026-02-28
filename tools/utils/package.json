@@ -1,0 +1,9 @@
+{
+  "name": "@malphite-tools/utils",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./workspace": "./src/workspace.ts"
+  }
+}

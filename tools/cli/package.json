@@ -1,5 +1,5 @@
 {
-  "name": "@malphite/cli",
+  "name": "@malphite-tool/cli",
   "version": "0.0.0",
   "license": "ISC",
   "author": "malphite",
@@ -12,6 +12,7 @@
     "malphite": "r malphite"
   },
   "dependencies": {
-    "clipanion": "catalog:"
+    "clipanion": "catalog:",
+    "@malphite-tools/utils": "workspace:^"
   }
 }

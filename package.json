@@ -12,12 +12,14 @@
     "malphite": "r malphite",
     "prepare": "husky",
     "typecheck": "tsc -b tsconfig.json --verbose",
-    "lint-staged": "lint-staged"
+    "lint-staged": "lint-staged",
+    "postinstall": "pnpm malphite init"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "typescript": "catalog:",
-    "@malphite/cli": "workspace:^",
+    "@malphite-tool/cli": "workspace:^",
+    "@malphite/core": "workspace:^",
     "husky": "catalog:",
     "lint-staged": "catalog:",
     "@types/node": "catalog:",
