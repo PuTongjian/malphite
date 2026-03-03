@@ -1,3 +1,4 @@
+import { pnpmWorkspaces, Workspace } from "@malphite-tools/utils/workspace";
 import { Command } from "./command";
 
 export class InitCommand extends Command {
@@ -7,5 +8,7 @@ export class InitCommand extends Command {
     this.generateWorkspaceFiles();
   }
 
-  async generateWorkspaceFiles() {}
+  async generateWorkspaceFiles() {
+    this.workspace = new Workspace(pnpmWorkspaces());
+  }
 }
