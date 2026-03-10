@@ -55,6 +55,11 @@ if (!scriptLocation) {
 
 const nodeOptions = [];
 
+// 当 MALPHITE_DEBUG=1 时，将 --inspect-brk 传给子进程，便于 VS Code 调试
+if (process.env.MALPHITE_DEBUG === "1") {
+  nodeOptions.unshift("--inspect-brk");
+}
+
 if (
   scriptLocation.endsWith(".ts") ||
   scriptLocation.startsWith(scriptsFolder)

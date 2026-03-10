@@ -14,5 +14,8 @@
   "dependencies": {
     "clipanion": "catalog:",
     "@malphite-tools/utils": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
   }
 }

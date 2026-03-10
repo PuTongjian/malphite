@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start r malphite",
+      "type": "shell",
+      "command": "node",
+      "args": ["tools/cli/bin/runner.js", "malphite"],
+      "options": {
+        "env": { "MALPHITE_DEBUG": "1" },
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": { "regexp": "^(.*)$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Debugger listening on"
+        }
+      }
+    },
+    {
+      "label": "Start r malphite init",
+      "type": "shell",
+      "command": "node",
+      "args": ["tools/cli/bin/runner.js", "malphite", "init"],
+      "options": {
+        "env": { "MALPHITE_DEBUG": "1" },
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": { "regexp": "^(.*)$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Debugger listening on"
+        }
+      }
+    }
+  ]
+}

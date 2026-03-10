@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "r malphite",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "preLaunchTask": "Start r malphite",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "r malphite init",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "preLaunchTask": "Start r malphite init",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

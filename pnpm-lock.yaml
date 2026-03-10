@@ -9,6 +9,9 @@ catalogs:
     '@biomejs/biome':
       specifier: ^2.3.10
       version: 2.3.10
+    '@types/lodash-es':
+      specifier: ^4.17.12
+      version: 4.17.12
     '@types/node':
       specifier: ^22.0.0
       version: 22.19.7
@@ -21,6 +24,9 @@ catalogs:
     lint-staged:
       specifier: ^16.2.7
       version: 16.2.7
+    lodash-es:
+      specifier: ^4.17.12
+      version: 4.17.23
     tsx:
       specifier: ^4.21.0
       version: 4.21.0
@@ -67,8 +73,19 @@ importers:
       clipanion:
         specifier: 'catalog:'
         version: 4.0.0-rc.4(typanion@3.14.0)
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.19.7
 
-  tools/utils: {}
+  tools/utils:
+    dependencies:
+      '@types/lodash-es':
+        specifier: 'catalog:'
+        version: 4.17.12
+      lodash-es:
+        specifier: 'catalog:'
+        version: 4.17.23
 
 packages:
 
@@ -281,6 +298,12 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@types/lodash-es@4.17.12':
+    resolution: {integrity: sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ==}
+
+  '@types/lodash@4.17.24':
+    resolution: {integrity: sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ==}
+
   '@types/node@22.19.7':
     resolution: {integrity: sha512-MciR4AKGHWl7xwxkBa6xUGxQJ4VBOmPTF7sL+iGzuahOFaO0jHCsuEfS80pan1ef4gWId1oWOweIhrDEYLuaOw==}
 
@@ -372,6 +395,9 @@ packages:
   listr2@9.0.5:
     resolution: {integrity: sha512-ME4Fb83LgEgwNw96RKNvKV4VTLuXfoKudAmm2lP8Kk87KaMK0/Xrx/aAkMWmT8mDb+3MlFDspfbCs7adjRxA2g==}
     engines: {node: '>=20.0.0'}
+
+  lodash-es@4.17.23:
+    resolution: {integrity: sha512-kVI48u3PZr38HdYz98UmfPnXl2DXrpdctLrFLCd3kOx1xUkOmpFPx7gCWWM5MPkL/fD8zb+Ph0QzjGFs4+hHWg==}
 
   log-update@6.1.0:
     resolution: {integrity: sha512-9ie8ItPR6tjY5uYJh8K/Zrv/RMZ5VOlOWvtZdEHYSTFKZfIBPQa9tOAEeAWhd+AnIneLJ22w5fjOYtoutpWq5w==}
@@ -580,6 +606,12 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
+  '@types/lodash-es@4.17.12':
+    dependencies:
+      '@types/lodash': 4.17.24
+
+  '@types/lodash@4.17.24': {}
+
   '@types/node@22.19.7':
     dependencies:
       undici-types: 6.21.0
@@ -687,6 +719,8 @@ snapshots:
       log-update: 6.1.0
       rfdc: 1.4.1
       wrap-ansi: 9.0.2
+
+  lodash-es@4.17.23: {}
 
   log-update@6.1.0:
     dependencies:
