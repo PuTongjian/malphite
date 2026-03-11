@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "exports": {
-    "./workspace": "./src/workspace.ts"
+    "./workspace": "./src/workspace.ts",
+    "./path": "./src/path.ts"
   },
   "dependencies": {
     "@types/lodash-es": "catalog:",

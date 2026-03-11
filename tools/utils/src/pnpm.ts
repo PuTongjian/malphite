@@ -3,17 +3,18 @@ import path from "node:path";
 import process from "node:process";
 import { once } from "lodash-es";
 import type { PnpmWorkspaceItem } from "./types";
+import type { PackageName } from "./workspace.gen";
 
-function getWorkspaceDependencies(pkg: PnpmWorkspaceItem): string[] {
-  const deps: (Record<string, { version?: string }> | undefined)[] = [
-    pkg.dependencies,
-    pkg.devDependencies,
-  ];
+function getWorkspaceDependencies(
+  pkg: PnpmWorkspaceItem,
+  cwd: string,
+): string[] {
+  const deps = [pkg.dependencies, pkg.devDependencies];
   return deps.flatMap((d) =>
     d
       ? Object.entries(d)
           .filter(([, info]) => info?.version?.startsWith("link:"))
-          .map(([name]) => name)
+          .map(([, info]) => path.relative(cwd, info?.path).replace(/\\/g, "/"))
       : [],
   );
 }
@@ -34,6 +35,18 @@ export const pnpmWorkspaces = once(() => {
     .map((pkg) => ({
       name: pkg.name,
       path: path.relative(cwd, pkg.path).replace(/\\/g, "/"),
-      workspaceDependencies: getWorkspaceDependencies(pkg),
+      workspaceDependencies: getWorkspaceDependencies(pkg, cwd),
     }));
 });
+
+async function loadPackageList() {
+  try {
+    const packageList = await import("./workspace.gen");
+    return packageList.PackageList;
+  } catch {
+    return [];
+  }
+}
+
+export const PackageList = await loadPackageList();
+export type { PackageName };

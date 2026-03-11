@@ -13,9 +13,7 @@
   },
   "dependencies": {
     "clipanion": "catalog:",
-    "@malphite-tools/utils": "workspace:^"
-  },
-  "devDependencies": {
-    "@types/node": "catalog:"
+    "@malphite-tools/utils": "workspace:^",
+    "jsonc-parser": "catalog:"
   }
 }
