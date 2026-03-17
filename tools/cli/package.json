@@ -12,8 +12,10 @@
     "malphite": "r malphite"
   },
   "dependencies": {
-    "clipanion": "catalog:",
+    "@biomejs/js-api": "catalog:",
+    "@biomejs/wasm-nodejs": "catalog:",
     "@malphite-tools/utils": "workspace:^",
+    "clipanion": "catalog:",
     "jsonc-parser": "catalog:"
   }
 }

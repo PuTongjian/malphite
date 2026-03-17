@@ -9,6 +9,12 @@ catalogs:
     '@biomejs/biome':
       specifier: ^2.3.10
       version: 2.3.10
+    '@biomejs/js-api':
+      specifier: ^4.0.0
+      version: 4.0.0
+    '@biomejs/wasm-nodejs':
+      specifier: ^2.4.7
+      version: 2.4.7
     '@types/lodash-es':
       specifier: ^4.17.12
       version: 4.17.12
@@ -70,6 +76,12 @@ importers:
 
   tools/cli:
     dependencies:
+      '@biomejs/js-api':
+        specifier: 'catalog:'
+        version: 4.0.0(@biomejs/wasm-nodejs@2.4.7)
+      '@biomejs/wasm-nodejs':
+        specifier: 'catalog:'
+        version: 2.4.7
       '@malphite-tools/utils':
         specifier: workspace:^
         version: link:../utils
@@ -147,6 +159,23 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@biomejs/js-api@4.0.0':
+    resolution: {integrity: sha512-EOArR/6drRzM1/hwOIz1pZw90FL31Ud4Y7hEHGWVtMNmAwS9SrwZ8hMENGlLVXCeGW/kL46p8kX7eO6x9Nmezg==}
+    peerDependencies:
+      '@biomejs/wasm-bundler': ^2.3.0
+      '@biomejs/wasm-nodejs': ^2.3.0
+      '@biomejs/wasm-web': ^2.3.0
+    peerDependenciesMeta:
+      '@biomejs/wasm-bundler':
+        optional: true
+      '@biomejs/wasm-nodejs':
+        optional: true
+      '@biomejs/wasm-web':
+        optional: true
+
+  '@biomejs/wasm-nodejs@2.4.7':
+    resolution: {integrity: sha512-oCbBK3q3c7syIuxmLFlKG7AC13yKSRkpKQpedrsluX/4J1aWANlF44sbMsONkT8flRa6gOUYlBa5yhDcLF8mrw==}
 
   '@esbuild/aix-ppc64@0.27.2':
     resolution: {integrity: sha512-GZMB+a0mOMZs4MpDbj8RJp4cw+w1WV5NYD6xzgvzUJ5Ek2jerwfO2eADyI6ExDSUED+1X8aMbegahsJi+8mgpw==}
@@ -536,6 +565,12 @@ snapshots:
 
   '@biomejs/cli-win32-x64@2.3.10':
     optional: true
+
+  '@biomejs/js-api@4.0.0(@biomejs/wasm-nodejs@2.4.7)':
+    optionalDependencies:
+      '@biomejs/wasm-nodejs': 2.4.7
+
+  '@biomejs/wasm-nodejs@2.4.7': {}
 
   '@esbuild/aix-ppc64@0.27.2':
     optional: true
