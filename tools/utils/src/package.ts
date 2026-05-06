@@ -2,7 +2,7 @@ import { type Path, ProjectRoot } from "./path";
 import { PackageList } from "./pnpm";
 import type { PnpmWorkspaceItem } from "./types";
 import type { Workspace } from "./workspace";
-import type { PackageName } from "./workspace.gen";
+import type { PackageName } from "./workspace-gen";
 
 export class Package {
   readonly name: PackageName;

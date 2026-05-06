@@ -3,7 +3,6 @@ import { Biome, type Configuration } from "@biomejs/js-api/nodejs";
 import { type Path, ProjectRoot } from "@malphite-tools/utils/path";
 import { pnpmWorkspaces, Workspace } from "@malphite-tools/utils/workspace";
 // import { applyEdits, modify } from "jsonc-parser";
-import config from "../../../biome.json" with { type: "json" };
 import { Command } from "./command";
 
 export class InitCommand extends Command {
@@ -28,7 +27,6 @@ export class InitCommand extends Command {
     ];
 
     for (const [path, content, extension] of filesToGenerate) {
-      console.log(`Generating ${path}...`);
       const previous = readFileSync(path.value, "utf-8");
       let file = content(previous);
 
@@ -43,10 +41,12 @@ export class InitCommand extends Command {
   format(content: string, extension: string) {
     const biome = new Biome();
     const { projectKey } = biome.openProject(ProjectRoot.value);
-    console.log(ProjectRoot.join("biome.json").value);
-    biome.applyConfiguration(projectKey, {
-      ...config,
-    } as Configuration);
+    const biomeConfigPath = ProjectRoot.join("biome.json").value;
+
+    const biomeConfig = JSON.parse(
+      readFileSync(biomeConfigPath, "utf-8"),
+    ) as Configuration;
+    biome.applyConfiguration(projectKey, biomeConfig);
 
     const { content: formattedContent } = biome.formatContent(
       projectKey,

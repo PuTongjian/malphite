@@ -1,7 +1,7 @@
 import { Package } from "./package";
 import { ProjectRoot } from "./path";
 import { PackageList, pnpmWorkspaces } from "./pnpm";
-import type { PackageName } from "./workspace.gen";
+import type { PackageName } from "./workspace-gen";
 
 export class Workspace {
   readonly packages: Package[];
@@ -9,7 +9,7 @@ export class Workspace {
   readonly path = ProjectRoot;
 
   constructor(list: typeof PackageList = PackageList) {
-    console.log("Hello Workspace!", list);
+    console.log(list);
     const packages = new Map<string, Package>();
 
     for (const meta of list) {
