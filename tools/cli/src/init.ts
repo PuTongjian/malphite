@@ -2,7 +2,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { Biome, type Configuration } from "@biomejs/js-api/nodejs";
 import { type Path, ProjectRoot } from "@malphite-tools/utils/path";
 import { pnpmWorkspaces, Workspace } from "@malphite-tools/utils/workspace";
-// import { applyEdits, modify } from "jsonc-parser";
+import { applyEdits, modify } from "jsonc-parser";
+
 import { Command } from "./command";
 
 export class InitCommand extends Command {
@@ -16,7 +17,7 @@ export class InitCommand extends Command {
     this.workspace = new Workspace(pnpmWorkspaces());
 
     const filesToGenerate: [Path, (prev: string) => string, string?][] = [
-      // [this.workspace.join("tsconfig.json"), this.genProjectTsConfig],
+      [this.workspace.join("tsconfig.json"), this.genProjectTsConfig, "json"],
       [
         this.workspace
           .getPackage("@malphite-tools/utils")
@@ -78,5 +79,17 @@ export class InitCommand extends Command {
     return content.join("\n");
   };
 
-  // genProjectTsConfig = (prev: string) => {};
+  genProjectTsConfig = (prev: string) => {
+    return applyEdits(
+      prev,
+      modify(
+        prev,
+        ["references"],
+        this.workspace.packages
+          .filter((pkg) => pkg.isTsProject)
+          .map((pkg) => ({ path: pkg.path.relativePath })),
+        {},
+      ),
+    );
+  };
 }

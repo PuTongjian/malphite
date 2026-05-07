@@ -1,3 +1,4 @@
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,6 +11,10 @@ export class Path {
     return this.path;
   }
 
+  get relativePath() {
+    return `./${this.path.slice(ProjectRoot.path.length).replace(/\\/g, "/")}`;
+  }
+
   constructor(private readonly path: string) {}
 
   join(...paths: string[]) {
@@ -18,6 +23,18 @@ export class Path {
 
   parent() {
     return this.join("..");
+  }
+
+  exists() {
+    return existsSync(this.path);
+  }
+
+  stats() {
+    return statSync(this.path);
+  }
+
+  isFile() {
+    return this.exists() && this.stats().isFile();
   }
 }
 

@@ -2,11 +2,12 @@ import { type Path, ProjectRoot } from "./path";
 import { PackageList } from "./pnpm";
 import type { PnpmWorkspaceItem } from "./types";
 import type { Workspace } from "./workspace";
-import type { PackageName } from "./workspace-gen";
+import type { PackageName } from "./workspace.gen";
 
 export class Package {
   readonly name: PackageName;
   readonly path: Path;
+  readonly isTsProject: boolean = false;
   private _workspace: Workspace | null = null;
 
   constructor(name: PackageName, meta?: PnpmWorkspaceItem) {
@@ -14,6 +15,9 @@ export class Package {
     meta ??= PackageList.find((item) => item.name === name)!;
 
     this.path = ProjectRoot.join(meta.path);
+
+    // parse workspace
+    this.isTsProject = this.path.join("tsconfig.json").isFile();
   }
 
   get workspace() {

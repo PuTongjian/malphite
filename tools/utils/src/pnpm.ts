@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { once } from "lodash-es";
 import type { PnpmWorkspaceItem } from "./types";
-import type { PackageName } from "./workspace-gen";
+import type { PackageName } from "./workspace.gen";
 
 function getWorkspaceDependencies(
   pkg: PnpmWorkspaceItem,
@@ -41,7 +41,7 @@ export const pnpmWorkspaces = once(() => {
 
 async function loadPackageList() {
   try {
-    const packageList = await import("./workspace-gen");
+    const packageList = await import("./workspace.gen");
     return packageList.PackageList;
   } catch {
     return [];

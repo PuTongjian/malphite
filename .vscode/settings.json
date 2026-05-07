@@ -17,6 +17,10 @@
     "editor.defaultFormatter": "biomejs.biome"
   },
 
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+
   // 控制相关文件嵌套展示
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.expand": false,
