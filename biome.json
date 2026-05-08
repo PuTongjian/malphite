@@ -29,9 +29,6 @@
   "javascript": {
     "formatter": {}
   },
-  "json": {
-    "formatter": {}
-  },
   "assist": {
     "enabled": true,
     "actions": {

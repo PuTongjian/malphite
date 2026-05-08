@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { Biome, type Configuration } from "@biomejs/js-api/nodejs";
 import { type Path, ProjectRoot } from "@malphite-tools/utils/path";
+import type { Package } from "@malphite-tools/utils/workspace";
 import { pnpmWorkspaces, Workspace } from "@malphite-tools/utils/workspace";
 import { applyEdits, modify } from "jsonc-parser";
-
 import { Command } from "./command";
 
 export class InitCommand extends Command {
@@ -17,7 +17,7 @@ export class InitCommand extends Command {
     this.workspace = new Workspace(pnpmWorkspaces());
 
     const filesToGenerate: [Path, (prev: string) => string, string?][] = [
-      [this.workspace.join("tsconfig.json"), this.genProjectTsConfig, "json"],
+      [this.workspace.join("tsconfig.json"), this.genProjectTsConfig, "jsonc"],
       [
         this.workspace
           .getPackage("@malphite-tools/utils")
@@ -25,6 +25,16 @@ export class InitCommand extends Command {
         this.genWorkspaceInfo,
         "ts",
       ],
+      ...this.workspace.packages
+        .filter((pkg) => pkg.isTsProject)
+        .map(
+          (pkg) =>
+            [
+              pkg.join("tsconfig.json"),
+              this.genPackageTsconfig.bind(this, pkg),
+              "jsonc",
+            ] as [Path, (prev: string) => string, string],
+        ),
     ];
 
     for (const [path, content, extension] of filesToGenerate) {
@@ -80,6 +90,20 @@ export class InitCommand extends Command {
   };
 
   genProjectTsConfig = (prev: string) => {
+    return applyEdits(
+      prev,
+      modify(
+        prev,
+        ["references"],
+        this.workspace.packages
+          .filter((pkg) => pkg.isTsProject)
+          .map((pkg) => ({ path: pkg.path.relativePath })),
+        {},
+      ),
+    );
+  };
+
+  genPackageTsconfig = (_pkg: Package, prev: string) => {
     return applyEdits(
       prev,
       modify(

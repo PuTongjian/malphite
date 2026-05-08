@@ -36,6 +36,10 @@ export class Path {
   isFile() {
     return this.exists() && this.stats().isFile();
   }
+
+  toString() {
+    return this.path;
+  }
 }
 
 export const ProjectRoot = Path.dir(import.meta.url).join("../../../");

@@ -2,11 +2,11 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 import { once } from "lodash-es";
-import type { PnpmWorkspaceItem } from "./types";
+import type { PnpmPackageJsonContent } from "./types";
 import type { PackageName } from "./workspace.gen";
 
 function getWorkspaceDependencies(
-  pkg: PnpmWorkspaceItem,
+  pkg: PnpmPackageJsonContent,
   cwd: string,
 ): string[] {
   const deps = [pkg.dependencies, pkg.devDependencies];
@@ -22,13 +22,13 @@ function getWorkspaceDependencies(
 export const pnpmWorkspaces = once(() => {
   const cwd = process.cwd();
 
-  // 使用 --depth=0 才能获取 dependencies/devDependencies
+  // use --depth=0 to get the dependencies/devDependencies
   const output = execSync("pnpm ls -r --depth=0 --json", {
     cwd,
     encoding: "utf8",
   });
 
-  const pnpmList = JSON.parse(output) as PnpmWorkspaceItem[];
+  const pnpmList = JSON.parse(output) as PnpmPackageJsonContent[];
 
   return pnpmList
     .filter((pkg) => path.resolve(pkg.path) !== cwd)
