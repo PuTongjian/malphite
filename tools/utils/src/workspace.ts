@@ -21,6 +21,14 @@ export class Workspace {
       }
     }
 
+    const building = new Set<string>();
+
+    try {
+      packages.forEach((pkg) => this.buildDeps(pkg, packages, building));
+    } catch (e) {
+      console.error(e);
+    }
+
     this.packages = Array.from(packages.values());
   }
 
@@ -38,9 +46,47 @@ export class Workspace {
     return pkg;
   }
 
+  buildDeps(
+    pkg: Package,
+    packages: Map<string, Package>,
+    building: Set<string>,
+  ) {
+    if (pkg.deps.length) {
+      return;
+    }
+
+    building.add(pkg.name);
+
+    pkg.deps = pkg.workspaceDependencies.map((relativeDepPath) => {
+      const dep = packages.get(relativeDepPath);
+
+      if (!dep) {
+        throw new Error(`Dependency ${relativeDepPath} not found in workspace`);
+      }
+
+      if (building.has(dep.name)) {
+        throw new Error(
+          `Circular dependency detected: ${pkg.name} -> ${dep.name}`,
+        );
+      }
+
+      if (!pkg.packageJson.private && dep.packageJson.private) {
+        console.warn(
+          `Warning: Public package "${pkg.name}" depends on private package "${dep.name}"`,
+        );
+      }
+
+      this.buildDeps(dep, packages, building);
+
+      return dep;
+    });
+
+    building.delete(pkg.name);
+  }
+
   join(...paths: string[]) {
     return this.path.join(...paths);
   }
 }
 
-export { pnpmWorkspaces };
+export { pnpmWorkspaces, Package };

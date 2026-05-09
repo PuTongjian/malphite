@@ -1,5 +1,5 @@
 import { existsSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export class Path {
@@ -39,6 +39,16 @@ export class Path {
 
   toString() {
     return this.path;
+  }
+
+  relative(to: string) {
+    const re = relative(this.value, to);
+
+    if (sep === "\\") {
+      return re.replaceAll("\\", "/");
+    }
+
+    return re;
   }
 }
 

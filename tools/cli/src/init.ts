@@ -103,15 +103,15 @@ export class InitCommand extends Command {
     );
   };
 
-  genPackageTsconfig = (_pkg: Package, prev: string) => {
+  genPackageTsconfig = (pkg: Package, prev: string) => {
     return applyEdits(
       prev,
       modify(
         prev,
         ["references"],
-        this.workspace.packages
-          .filter((pkg) => pkg.isTsProject)
-          .map((pkg) => ({ path: pkg.path.relativePath })),
+        pkg.deps
+          .filter((p) => p.isTsProject)
+          .map((d) => ({ path: pkg.path.relative(d.path.value) })),
         {},
       ),
     );

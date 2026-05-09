@@ -1,6 +1,7 @@
 {
   "name": "@malphite-tool/cli",
   "version": "0.0.0",
+  "private": true,
   "license": "ISC",
   "author": "malphite",
   "type": "module",
