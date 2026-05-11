@@ -5,10 +5,12 @@
   "private": true,
   "exports": {
     "./workspace": "./src/workspace.ts",
-    "./path": "./src/path.ts"
+    "./path": "./src/path.ts",
+    "./logger": "./src/logger.ts"
   },
   "dependencies": {
     "@types/lodash-es": "catalog:",
-    "lodash-es": "catalog:"
+    "lodash-es": "catalog:",
+    "chalk": "catalog:"
   }
 }

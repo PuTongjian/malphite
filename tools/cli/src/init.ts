@@ -10,7 +10,9 @@ export class InitCommand extends Command {
   static override paths = [["init"], ["i"]];
 
   async execute() {
+    this.logger.info("Generating Workspace configs");
     this.generateWorkspaceFiles();
+    this.logger.info("Workspace configs generated");
   }
 
   async generateWorkspaceFiles() {

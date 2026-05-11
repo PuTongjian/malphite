@@ -1,9 +1,13 @@
+import { Logger } from "@malphite-tools/utils/logger";
 import { Command as BaseCommand } from "clipanion";
-
 import type { CliContext } from "./context";
 
 export abstract class Command extends BaseCommand<CliContext> {
   cmd = this.constructor.paths?.[0][0];
+
+  get logger() {
+    return new Logger(this.cmd);
+  }
 
   get workspace() {
     return this.context.workspace;
