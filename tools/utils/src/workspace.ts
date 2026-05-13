@@ -1,12 +1,21 @@
+import { Logger } from "./logger";
 import { Package } from "./package";
 import { ProjectRoot } from "./path";
 import { PackageList, pnpmWorkspaces } from "./pnpm";
 import type { PackageName } from "./workspace.gen";
 
+class CircularDependenciesError extends Error {
+  constructor(public currentName: string) {
+    super("Circular dependencies error");
+  }
+}
+
 export class Workspace {
   readonly packages: Package[];
 
   readonly path = ProjectRoot;
+
+  private readonly logger = new Logger("Malphite workspace");
 
   constructor(list: typeof PackageList = PackageList) {
     const packages = new Map<string, Package>();
@@ -16,8 +25,8 @@ export class Workspace {
         const pkg = new Package(meta.name as PackageName, meta);
         pkg.workspace = this;
         packages.set(meta.path, pkg);
-      } catch (error) {
-        console.error(error);
+      } catch (e) {
+        this.logger.error(e as Error);
       }
     }
 
@@ -26,7 +35,18 @@ export class Workspace {
     try {
       packages.forEach((pkg) => this.buildDeps(pkg, packages, building));
     } catch (e) {
-      console.error(e);
+      if (e instanceof CircularDependenciesError) {
+        const inProcessPackages = Array.from(building);
+        const circle = inProcessPackages
+          .slice(inProcessPackages.indexOf(e.currentName))
+          .concat(e.currentName);
+        this.logger.error(
+          `Circular dependencies found: \n ${circle.join(" -> ")}`,
+        );
+        process.exit(1);
+      }
+
+      throw e;
     }
 
     this.packages = Array.from(packages.values());
@@ -65,9 +85,7 @@ export class Workspace {
       }
 
       if (building.has(dep.name)) {
-        throw new Error(
-          `Circular dependency detected: ${pkg.name} -> ${dep.name}`,
-        );
+        throw new CircularDependenciesError(dep.name);
       }
 
       if (!pkg.packageJson.private && dep.packageJson.private) {
