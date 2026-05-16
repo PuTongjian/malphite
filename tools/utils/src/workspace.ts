@@ -10,6 +10,17 @@ class CircularDependenciesError extends Error {
   }
 }
 
+class ForbiddenPackageRefError extends Error {
+  constructor(
+    public currentName: string,
+    public refName: string,
+  ) {
+    super(
+      `Public package cannot reference private package. Found '${refName}' in dependencies of '${currentName}'`,
+    );
+  }
+}
+
 export class Workspace {
   readonly packages: Package[];
 
@@ -89,9 +100,7 @@ export class Workspace {
       }
 
       if (!pkg.packageJson.private && dep.packageJson.private) {
-        console.warn(
-          `Warning: Public package "${pkg.name}" depends on private package "${dep.name}"`,
-        );
+        throw new ForbiddenPackageRefError(pkg.name, dep.name);
       }
 
       this.buildDeps(dep, packages, building);

@@ -8,11 +8,11 @@ interface StringLike {
 export const newLineSeparator = /\r\n|[\n\r\x85\u2028\u2029]/g;
 
 const loggerStyles = {
-  log: chalk.bgWhite.black,
-  info: chalk.bgBlueBright.whiteBright,
-  warn: chalk.bgYellow.black,
-  error: chalk.bgRed.whiteBright,
-  success: chalk.bgGreen.black,
+  log: chalk.hex("#000000").bgHex("#B3B1AD"),
+  info: chalk.hex("#000000").bgHex("#009AC4"),
+  warn: chalk.hex("#000000").bgHex("#F2AE54"),
+  error: chalk.hex("#000000").bgHex("#E94332"),
+  success: chalk.hex("#000000").bgHex("#86B300"),
 };
 
 export class Logger {

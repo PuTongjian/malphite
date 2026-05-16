@@ -40,6 +40,7 @@ export class InitCommand extends Command {
     ];
 
     for (const [path, content, extension] of filesToGenerate) {
+      this.logger.info(`Generating: ${path}`);
       const previous = readFileSync(path.value, "utf-8");
       let file = content(previous);
 
