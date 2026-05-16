@@ -75,7 +75,11 @@ importers:
         specifier: 'catalog:'
         version: 5.9.3
 
+  packages/frontend/app/web: {}
+
   packages/frontend/core: {}
+
+  tools/@types/build-config: {}
 
   tools/cli:
     dependencies:

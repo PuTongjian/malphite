@@ -42,7 +42,7 @@
     // 允许导入 JSON 文件 / Allow importing JSON modules
     "resolveJsonModule": true,
     // 指定类型声明文件的查找目录 / Specify the base directory for type declaration file lookup
-    "typeRoots": ["./node_modules/@types"],
+    "typeRoots": ["./tools/@types", "./node_modules/@types"],
 
     // ========== 输出配置 / Emit Configuration ==========
     // 编译目标的 JavaScript 库 / Target JavaScript library (ES2024 features)

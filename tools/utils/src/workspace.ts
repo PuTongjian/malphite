@@ -116,4 +116,4 @@ export class Workspace {
   }
 }
 
-export { pnpmWorkspaces, Package };
+export { pnpmWorkspaces, Package, type PackageName };

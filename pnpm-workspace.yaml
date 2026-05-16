@@ -1,6 +1,6 @@
 packages:
   - tools/**
-  - packages/** # 包含 packages/frontend/core 等嵌套包
+  - packages/**
 allowBuilds:
   esbuild: true
 

@@ -3,8 +3,18 @@
 
 export const PackageList = [
   {
+    name: "@amlphite/web",
+    path: "packages/frontend/app/web",
+    workspaceDependencies: [],
+  },
+  {
     name: "@malphite/core",
     path: "packages/frontend/core",
+    workspaceDependencies: [],
+  },
+  {
+    name: "@types/build-config",
+    path: "tools/@types/build-config",
     workspaceDependencies: [],
   },
   {
@@ -20,6 +30,8 @@ export const PackageList = [
 ];
 
 export type PackageName =
+  | "@amlphite/web"
   | "@malphite/core"
+  | "@types/build-config"
   | "@malphite-tool/cli"
   | "@malphite-tools/utils";
