@@ -17,6 +17,7 @@
     "@biomejs/wasm-nodejs": "catalog:",
     "@malphite-tools/utils": "workspace:^",
     "clipanion": "catalog:",
-    "jsonc-parser": "catalog:"
+    "jsonc-parser": "catalog:",
+    "typanion": "catalog:"
   }
 }

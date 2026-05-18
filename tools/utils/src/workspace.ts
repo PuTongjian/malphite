@@ -22,6 +22,10 @@ class ForbiddenPackageRefError extends Error {
 }
 
 export class Workspace {
+  static PackageNames: PackageName[] = PackageList.map(
+    (pkg) => pkg.name,
+  ) as PackageName[];
+
   readonly packages: Package[];
 
   readonly path = ProjectRoot;

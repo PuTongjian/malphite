@@ -44,6 +44,10 @@ export class Package {
     this._workspace = workspace;
   }
 
+  get scripts() {
+    return this.packageJson.scripts || {};
+  }
+
   join(...paths: string[]) {
     return this.path.join(...paths);
   }

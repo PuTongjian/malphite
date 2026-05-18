@@ -18,3 +18,4 @@ catalog:
   typescript: ^5.9.3
   '@biomejs/js-api': ^4.0.0
   '@biomejs/wasm-nodejs': ^2.4.7
+  typanion: ^3.14.0

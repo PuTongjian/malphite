@@ -38,6 +38,25 @@
           "endsPattern": "Debugger listening on"
         }
       }
+    },
+    {
+      "label": "Start r malphite -p web dev",
+      "type": "shell",
+      "command": "node",
+      "args": ["tools/cli/bin/runner.js", "malphite", "-p", "web", "dev"],
+      "options": {
+        "env": { "MALPHITE_DEBUG": "1" },
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": { "regexp": "^(.*)$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Debugger listening on"
+        }
+      }
     }
   ]
 }

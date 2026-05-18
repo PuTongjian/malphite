@@ -16,6 +16,14 @@
       "port": 9229,
       "preLaunchTask": "Start r malphite init",
       "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "r malphite -p web dev",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "preLaunchTask": "Start r malphite -p web dev",
+      "skipFiles": ["<node_internals>/**"]
     }
   ]
 }
