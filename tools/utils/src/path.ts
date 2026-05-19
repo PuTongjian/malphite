@@ -1,6 +1,6 @@
 import { existsSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 export class Path {
   static dir(url: string) {
@@ -39,6 +39,10 @@ export class Path {
 
   toString() {
     return this.path;
+  }
+
+  toFileUrl() {
+    return pathToFileURL(this.path);
   }
 
   relative(to: string) {
