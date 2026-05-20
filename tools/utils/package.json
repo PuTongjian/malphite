@@ -7,7 +7,8 @@
     "./workspace": "./src/workspace.ts",
     "./path": "./src/path.ts",
     "./logger": "./src/logger.ts",
-    "./distribution": "./src/distribution.ts"
+    "./distribution": "./src/distribution.ts",
+    "./process": "./src/process.ts"
   },
   "dependencies": {
     "@types/lodash-es": "catalog:",

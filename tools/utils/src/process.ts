@@ -38,15 +38,48 @@ export function spawn(
     }
   };
 
-  logger.log(drain);
+  childProcess.stdout?.on("data", (chunk) => {
+    logger.log(chunk);
+  });
+
+  childProcess.stderr?.on("data", (chunk) => {
+    logger.error(chunk);
+  });
+
+  childProcess.once("error", (e) => {
+    logger.error(e.toString());
+    children.delete(childProcess);
+  });
+
+  childProcess.once("exit", (code, signal) => {
+    if (code !== 0) {
+      logger.error("Finished with non-zero exit code.");
+    }
+
+    drain(code, signal);
+  });
+
+  return childProcess;
 }
 
-export function executionAsyncId(
+export function execAsync(
   tag: string,
   cmd: string | string[],
   options?: SpawnOptions,
 ): Promise<void> {
-  return new Promise<void>((_resolve, _reject) => {
-    const _childProcess = spawn(tag, cmd, options);
+  return new Promise<void>((resolve, reject) => {
+    const childProcess = spawn(tag, cmd, options);
+
+    childProcess.once("error", (e) => {
+      reject(e);
+    });
+
+    childProcess.once("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Child process exits with non-zero code ${code}`));
+      }
+    });
   });
 }

@@ -1,4 +1,5 @@
 import { Path } from "@malphite-tools/utils/path";
+import { execAsync } from "@malphite-tools/utils/process";
 import type { Package, PackageName } from "@malphite-tools/utils/workspace";
 import { Option } from "clipanion";
 import { PackageCommand } from "./command";
@@ -27,6 +28,11 @@ export class RunCommand extends PackageCommand {
     `,
   });
 
+  protected override packageNameOrAlias: string = Option.String({
+    required: true,
+    validator: this.packageNameValidator,
+  });
+
   args = Option.Proxy({ name: "args", required: 1 });
 
   async execute() {
@@ -50,9 +56,9 @@ export class RunCommand extends PackageCommand {
 
     if (pkgScript) {
       await this.runScript(pkg, scriptName, args.slice(1), opts);
+    } else {
+      await this.runCommand(pkg, args);
     }
-
-    this.logger.success(name);
   }
 
   async runScript(
@@ -118,7 +124,7 @@ export class RunCommand extends PackageCommand {
     }
   }
 
-  async runCommand(_pkg: Package, args: string[]) {
+  async runCommand(pkg: Package, args: string[]) {
     const { args: extractedArgs, envs } = this.extractEnvs(args);
     args = extractedArgs;
 
@@ -146,7 +152,13 @@ export class RunCommand extends PackageCommand {
       args.unshift("pnpm");
     }
 
-    // await execAsync
+    await execAsync(pkg.name, args, {
+      cwd: pkg.path.value,
+      env: {
+        ...envs,
+        NODE_OPTIONS: NODE_OPTIONS.join(" "),
+      },
+    });
   }
 
   private extractEnvs(args: string[]) {
