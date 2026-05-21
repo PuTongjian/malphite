@@ -107,7 +107,7 @@ export class RunCommand extends PackageCommand {
       }
     }
 
-    const isMalphiteCommand = args[0] === "affine";
+    const isMalphiteCommand = args[0] === "malphite";
     if (isMalphiteCommand) {
       // remove 'malphie' from 'malphite xxx' command
       args.shift();

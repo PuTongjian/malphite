@@ -1,5 +1,6 @@
 import { Workspace } from "@malphite-tools/utils/workspace";
 import { Cli } from "clipanion";
+import { BundleCommand } from "./bundle";
 import type { CliContext } from "./context";
 import { DevCommand } from "./dev";
 import { InitCommand } from "./init";
@@ -16,6 +17,7 @@ const cli = new Cli<CliContext>({
 cli.register(RunCommand);
 cli.register(DevCommand);
 cli.register(InitCommand);
+cli.register(BundleCommand);
 
 await cli.runExit(process.argv.slice(2), {
   workspace: new Workspace(),

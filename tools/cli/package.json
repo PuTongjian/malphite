@@ -18,6 +18,7 @@
     "@malphite-tools/utils": "workspace:^",
     "clipanion": "catalog:",
     "jsonc-parser": "catalog:",
-    "typanion": "catalog:"
+    "typanion": "catalog:",
+    "vite": "catalog:"
   }
 }
