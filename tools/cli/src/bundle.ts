@@ -1,6 +1,6 @@
 import type { Package } from "@malphite-tools/utils/workspace";
 import { Option } from "clipanion";
-// import { createServer, mergeConfig, type UserConfig } from "vite";
+import { createServer } from "vite";
 import { PackageCommand } from "./command";
 import { ceateHTMLTargetConfig } from "./vite/index";
 
