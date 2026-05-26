@@ -11,9 +11,6 @@ export function ceateHTMLTargetConfig(pkg: Package): UserConfig {
       __PACKAGE_NAME__: JSON.stringify(pkg.name),
     },
     resolve: {
-      alias: {
-        // "@malphite/core": ProjectRoot.join("packages/frontend/core/src").value,
-      },
       extensions: [".mjs", ".js", ".ts", ".jsx", ".tsx", ".json"],
     },
     build: {
