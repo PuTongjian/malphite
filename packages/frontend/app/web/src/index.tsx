@@ -1,5 +1,18 @@
-const root = document.querySelector("#root");
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./app";
 
-if (root) {
-  root.textContent = "Malphite web app";
+function mountApp() {
+  const root = document.querySelector("#root");
+  if (!root) {
+    throw new Error("Root element #root not found");
+  }
+
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
 }
+
+mountApp();

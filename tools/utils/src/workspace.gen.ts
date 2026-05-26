@@ -5,7 +5,7 @@ export const PackageList = [
   {
     name: "@mlphite/web",
     path: "packages/frontend/app/web",
-    workspaceDependencies: [],
+    workspaceDependencies: ["packages/frontend/core"],
   },
   {
     name: "@malphite/core",

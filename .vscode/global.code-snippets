@@ -1,12 +1,12 @@
 {
   "snippet:import": {
-    "scope": "javascript,typescript",
+    "scope": "javascript,typescript,typescriptreact",
     "prefix": "im",
     "body": ["import { $2 } from '$1';"],
     "description": "Import a module"
   },
   "snippet:export-all": {
-    "scope": "javascript,typescript",
+    "scope": "javascript,typescript,typescriptreact",
     "prefix": "ex",
     "body": ["export * from '$1';"],
     "description": "Export a module"
