@@ -1,10 +1,17 @@
 {
   "name": "@malphite/core",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    }
+  },
   "scripts": {},
   "dependencies": {
     "@types/react": "catalog:",
-    "react": "catalog:"
+    "react": "catalog:",
+    "react-router-dom": "catalog:"
   }
 }

@@ -1,9 +1,10 @@
-import { AppShell } from "@malphite/core";
+import { AppShell, router } from "@malphite/core";
+import { RouterProvider } from "react-router-dom";
 
 export function App() {
   return (
     <AppShell>
-      <h1>Hello, Malphite!</h1>
+      <RouterProvider router={router} />
     </AppShell>
   );
 }
