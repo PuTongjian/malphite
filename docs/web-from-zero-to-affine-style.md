@@ -9,16 +9,31 @@
 3. 每一步只引入一个新概念。
 4. 最后再回头对应 AFFiNE 的真实文件。
 
-当前你的项目已经有这些基础：
+## 如何使用这份文档
+
+这份教程有两种读法：
+
+1. **从零练习**：从第 1 阶段开始，把代码退回到最小 DOM 页面，再一步步演进。
+2. **基于当前仓库继续**：先看下面的“当前仓库状态”，跳过已经完成的阶段，从缺口开始补。
+
+当前仓库已经不只是最小 Web。它已经有这些基础：
 
 ```text
 packages/frontend/app/web/
   index.html
+  src/setup.ts
+  src/app.tsx
   src/index.tsx
   package.json
 
 packages/frontend/core/
   package.json
+  src/index.ts
+  src/components/app-shell.tsx
+  src/router.tsx
+  src/shared/live-state.ts
+  src/shared/use-live-state.ts
+  src/modules/site/site-service.ts
 
 tools/cli/
   bundle.ts
@@ -29,6 +44,8 @@ docs/
   vite8-rolldown-bundle-guide.md
 ```
 
+注意包名：当前 web 包叫 `@mlphite/web`，core 包叫 `@malphite/core`。这两个名字现在就是这样拼的，教程按当前仓库讲。
+
 所以这份文档默认你已经能通过 CLI 启动 Web：
 
 ```bash
@@ -37,11 +54,32 @@ pnpm malphite web dev
 
 如果这条命令失败，也可以临时直接进入 web 包启动 Vite，等 CLI 修好后再切回来。
 
+当前仓库大致已经走到这个位置：
+
+| 阶段 | 当前状态 | 说明 |
+| --- | --- | --- |
+| 第 1-4 阶段 | 已完成 | Web 已经接入 React 并用 `createRoot` 渲染 |
+| 第 5 阶段 | 部分完成 | `setup.ts` 已存在，但 `index.tsx` 还没有显式 `import "./setup"` |
+| 第 6-8 阶段 | 已完成 | `@malphite/core` 已有 `AppShell` 和 `router`，web 已经使用 core |
+| 第 9 阶段 | 已完成学习版 | 已有 `SiteService` 和 singleton `siteService` |
+| 第 10 阶段 | 部分完成 | 已有 `LiveState` 和 `useLiveState`，但页面还没使用它 |
+| 第 11 阶段以后 | 未完成 | 还没有 `Framework`、`configureCommonModules`、workspace、存储演进 |
+
+如果你是接着当前仓库做，最自然的下一步不是再创建 `AppShell`，而是：
+
+```text
+1. 在 index.tsx 顶部接入 setup.ts。
+2. 把 SiteService 改成 LiveState 版本，并让页面用 useLiveState。
+3. 实现最小 Framework。
+4. 把 service 注册抽成 configureCommonModules。
+5. 再进入 workspace 学习版。
+```
+
 ---
 
 ## 总目标
 
-我们最终要把当前最小页面：
+如果从零练习，我们会先从这个最小页面开始：
 
 ```ts
 const root = document.querySelector("#root");
@@ -51,7 +89,7 @@ if (root) {
 }
 ```
 
-逐步演进成类似 AFFiNE 的结构：
+然后逐步演进成类似 AFFiNE 的结构：
 
 ```text
 web/src/index.tsx
@@ -127,8 +165,10 @@ tools/cli/src/run.ts
   -> 转成 bundle --dev -p @mlphite/web
 
 tools/cli/src/bundle.ts
-  -> createServer(createHTMLTargetConfig(pkg))
+  -> createServer(ceateHTMLTargetConfig(pkg))
 ```
+
+注意：当前代码里的函数名是 `ceateHTMLTargetConfig`，拼写少了一个 `r`。教程先按当前代码讲；以后重构时可以把它统一改成 `createHTMLTargetConfig`。
 
 此时学到的东西：
 
@@ -253,6 +293,8 @@ pnpm add react react-dom --filter @mlphite/web
 pnpm add -D @types/react @types/react-dom --filter @mlphite/web
 ```
 
+如果 `packages/frontend/app/web/package.json` 里已经有这些依赖，就不要重复安装。当前仓库已经有 `react`、`react-dom`、`react-router-dom` 和对应类型依赖。
+
 把 `app.ts` 改成 `app.tsx`：
 
 ```tsx
@@ -346,6 +388,14 @@ web/src/setup.ts
 
 注意：你现在不要急着实现这些复杂 bootstrap。先把位置留出来。
 
+当前仓库里 `packages/frontend/app/web/src/setup.ts` 已经存在，但文件还是空的，并且 `index.tsx` 还没有引入它。接着当前仓库做时，可以先补成：
+
+```ts
+import "./setup";
+```
+
+这行要放在 `index.tsx` 的其他应用代码之前。这样后续主题、polyfill、错误监听等全局初始化都有稳定入口。
+
 ---
 
 ## 第 6 阶段：把通用逻辑放进 @malphite/core
@@ -394,6 +444,8 @@ export { AppShell } from "./components/app-shell";
   }
 }
 ```
+
+当前仓库已经加过这条依赖，所以接着当前仓库做时不用再改。
 
 并在 `web/src/app.tsx` 使用：
 
@@ -503,6 +555,21 @@ export function App() {
 ```text
 packages/frontend/core/src/router.tsx
 ```
+
+把 router 移到 core 后，`@malphite/core` 自己也要声明它依赖 React 和 router。不要只依赖 web 包的依赖被 hoist 到根目录；那样能跑但包边界是错的。
+
+`packages/frontend/core/package.json`：
+
+```json
+{
+  "dependencies": {
+    "react": "catalog:",
+    "react-router-dom": "catalog:"
+  }
+}
+```
+
+当前仓库已经有这两项依赖。
 
 `core/src/router.tsx`：
 
@@ -666,6 +733,21 @@ export function useLiveState<T>(state: LiveState<T>) {
 }
 ```
 
+这个 hook 是教学版，目的是让你看清楚“订阅 -> setState -> 重新渲染”的链路。真实项目里，外部 store 更推荐用 React 的 `useSyncExternalStore`，它对 concurrent rendering 更稳。学习阶段先用上面版本即可，等你理解链路后可以升级成：
+
+```tsx
+import { useSyncExternalStore } from "react";
+import type { LiveState } from "./live-state";
+
+export function useLiveState<T>(state: LiveState<T>) {
+  return useSyncExternalStore(
+    (listener) => state.subscribe(listener),
+    () => state.value,
+    () => state.value,
+  );
+}
+```
+
 Service：
 
 ```ts
@@ -774,6 +856,20 @@ export function useService<T>(token: new (...args: never[]) => T): T {
 }
 ```
 
+然后把这些新能力从 core 包导出去。否则 `web/src/app.tsx` 从 `@malphite/core` 导入时会失败。
+
+`core/src/index.ts`：
+
+```ts
+export { AppShell } from "./components/app-shell";
+export { Framework } from "./framework/framework";
+export { FrameworkRoot, useService } from "./framework/react";
+export { SiteService } from "./modules/site/site-service";
+export { router } from "./router";
+```
+
+当前仓库的 `core/src/index.ts` 现在只导出了 `AppShell` 和 `router`，所以做第 11 阶段时一定要补这一步。
+
 在 `web/src/app.tsx` 创建：
 
 ```tsx
@@ -804,6 +900,38 @@ export function App() {
 
 ```tsx
 const siteService = useService(SiteService);
+```
+
+到这一步后，`export const siteService = new SiteService()` 可以先保留但不要再新增使用点。等所有页面都改成 `useService(SiteService)` 后，再删除这个 singleton。这样迁移是连续的，不会一次改太多。
+
+例如 `core/src/router.tsx` 里的 `HomePage` 可以先这样改：
+
+```tsx
+import { createBrowserRouter } from "react-router-dom";
+import { SiteService } from "./modules/site/site-service";
+import { useLiveState } from "./shared/use-live-state";
+import { useService } from "./framework/react";
+
+function HomePage() {
+  const siteService = useService(SiteService);
+  const title = useLiveState(siteService.title$);
+
+  return (
+    <>
+      <h1>{title}</h1>
+      <button onClick={() => siteService.rename("New Malphite")}>rename</button>
+    </>
+  );
+}
+
+function AboutPage() {
+  return <h1>关于</h1>;
+}
+
+export const router = createBrowserRouter([
+  { path: "/", element: <HomePage /> },
+  { path: "/about", element: <AboutPage /> },
+]);
 ```
 
 对应 AFFiNE：
@@ -841,6 +969,38 @@ export function configureCommonModules(framework: Framework) {
 ```ts
 const framework = new Framework();
 configureCommonModules(framework);
+```
+
+同时更新 `core/src/index.ts`：
+
+```ts
+export { configureCommonModules } from "./modules";
+```
+
+于是 `web/src/app.tsx` 可以变成：
+
+```tsx
+import {
+  AppShell,
+  Framework,
+  FrameworkRoot,
+  configureCommonModules,
+  router,
+} from "@malphite/core";
+import { RouterProvider } from "react-router-dom";
+
+const framework = new Framework();
+configureCommonModules(framework);
+
+export function App() {
+  return (
+    <FrameworkRoot framework={framework}>
+      <AppShell>
+        <RouterProvider router={router} />
+      </AppShell>
+    </FrameworkRoot>
+  );
+}
 ```
 
 这一步非常重要。
@@ -902,6 +1062,29 @@ export class WorkspaceService {
 }
 ```
 
+把它注册进模块系统：
+
+`core/src/modules/index.ts`：
+
+```ts
+import type { Framework } from "../framework/framework";
+import { SiteService } from "./site/site-service";
+import { WorkspaceService } from "./workspace/workspace-service";
+
+export function configureCommonModules(framework: Framework) {
+  framework.service(SiteService, new SiteService());
+  framework.service(WorkspaceService, new WorkspaceService());
+}
+```
+
+然后从 core 包导出：
+
+`core/src/index.ts`：
+
+```ts
+export { WorkspaceService } from "./modules/workspace/workspace-service";
+```
+
 增加路由：
 
 ```tsx
@@ -913,6 +1096,8 @@ export class WorkspaceService {
 
 页面逻辑：
 
+`core/src/pages/workspace-page.tsx`：
+
 ```tsx
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
@@ -920,7 +1105,7 @@ import { useService } from "../framework/react";
 import { useLiveState } from "../shared/use-live-state";
 import { WorkspaceService } from "../modules/workspace/workspace-service";
 
-function WorkspacePage() {
+export function WorkspacePage() {
   const { workspaceId } = useParams();
   const workspaceService = useService(WorkspaceService);
   const current = useLiveState(workspaceService.current$);
@@ -938,6 +1123,29 @@ function WorkspacePage() {
   return <h1>{current.name}</h1>;
 }
 ```
+
+最后在 `core/src/router.tsx` 接入页面：
+
+```tsx
+import { createBrowserRouter } from "react-router-dom";
+import { WorkspacePage } from "./pages/workspace-page";
+
+function HomePage() {
+  return <h1>首页</h1>;
+}
+
+function AboutPage() {
+  return <h1>关于</h1>;
+}
+
+export const router = createBrowserRouter([
+  { path: "/", element: <HomePage /> },
+  { path: "/about", element: <AboutPage /> },
+  { path: "/workspace/:workspaceId", element: <WorkspacePage /> },
+]);
+```
+
+这个阶段有一个关键点：`WorkspacePage` 不能再直接 import 一个 singleton，它应该通过 `useService(WorkspaceService)` 拿到当前 framework scope 里的实例。这就是后面理解 AFFiNE workspace 独立 scope 的入口。
 
 对应 AFFiNE：
 
@@ -1072,6 +1280,27 @@ localStorage.setItem("articles", JSON.stringify([...articles]));
 14. 把内存数据换成 localStorage。
 15. 再考虑 IndexedDB 和 worker。
 
+每一步完成后都做一次最小验收：
+
+```bash
+pnpm malphite web dev
+```
+
+然后在浏览器打开 Vite 输出的地址，至少确认：
+
+1. 首页能渲染。
+2. `/about` 能渲染。
+3. 修改对应文件后页面能热更新。
+4. 控制台没有 import/export 报错。
+
+还可以跑：
+
+```bash
+pnpm typecheck
+```
+
+但要注意：当前根 `tsconfig.json` 只引用了 tools 包，还没有把 `packages/frontend/app/web` 和 `packages/frontend/core` 纳入项目引用。所以它能证明 CLI 相关 TypeScript 没坏，不能完整证明前端示例都被类型检查覆盖。后续如果要把教程变成可测试练习，应该给 web/core 增加各自的 `tsconfig.json`，再加入根 `references`。
+
 ---
 
 ## 当前项目下一步建议
@@ -1081,35 +1310,51 @@ localStorage.setItem("articles", JSON.stringify([...articles]));
 - monorepo
 - CLI
 - Vite dev server
-- 最小 Web 入口
-- 空的 `@malphite/core`
+- React Web 入口
+- `@malphite/core`
+- `AppShell`
+- core router
+- `SiteService`
+- 学习版 `LiveState`
 
 所以下一步不要继续抽 CLI，也不要先做复杂 worker。
 
-最合适的下一步是：
+最合适的下一步是补齐第 5、10、11、12 阶段之间的断点：
 
 ```text
-把 @malphite/core 从空包变成可用包：
-  src/index.ts
-  src/components/app-shell.tsx
-```
+1. web/src/index.tsx
+   -> 顶部 import "./setup";
 
-然后让 `@mlphite/web` 使用 `@malphite/core`。
+2. core/src/modules/site/site-service.ts
+   -> 从 getTitle() 升级成 title$ + rename()
+
+3. core/src/router.tsx
+   -> HomePage 使用 useLiveState(siteService.title$)
+
+4. core/src/framework/*
+   -> 加 Framework、FrameworkRoot、useService
+
+5. core/src/modules/index.ts
+   -> 加 configureCommonModules(framework)
+```
 
 这一步完成后，你的项目就会从：
 
 ```text
-web 自己渲染文字
+web 负责启动
+core 提供 UI、router、service
+service 仍然是 singleton
 ```
 
 变成：
 
 ```text
 web 负责启动
-core 负责应用 UI
+core 提供 UI、router、service、模块注册
+service 从 framework scope 里取
 ```
 
-这就是 AFFiNE 架构的第一层。
+这才是接近 AFFiNE 的第一层：入口薄，业务模块集中注册，页面通过 framework 取服务。等这个跑通，再做 workspace；否则 workspace 会变成“更多 singleton”，学不到 AFFiNE 真正重要的 scope 概念。
 
 ---
 
@@ -1138,4 +1383,4 @@ AFFiNE 的最终形态很复杂，但它背后的演进路线其实是：
   -> 能高性能存储和同步
 ```
 
-你现在应该处在第一步到第二步之间。
+如果接着当前仓库做，你现在大概处在“能复用”到“能组合”之间：core 已经能复用，但模块注册和作用域隔离还没建立。
