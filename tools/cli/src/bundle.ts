@@ -2,7 +2,7 @@ import type { Package } from "@malphite-tools/utils/workspace";
 import { Option } from "clipanion";
 import { createServer } from "vite";
 import { PackageCommand } from "./command";
-import { ceateHTMLTargetConfig } from "./vite/index";
+import { createHTMLTargetConfig } from "./vite/index";
 
 export class BundleCommand extends PackageCommand {
   static override paths = [["bundle"], ["pack"], ["bun"]];
@@ -25,7 +25,7 @@ export class BundleCommand extends PackageCommand {
   static async dev(pkg: Package) {
     process.env.NODE_ENV = "development";
 
-    const server = await createServer(ceateHTMLTargetConfig(pkg));
+    const server = await createServer(createHTMLTargetConfig(pkg));
 
     await server.listen();
     server.printUrls();

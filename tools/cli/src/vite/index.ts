@@ -1,7 +1,7 @@
 import type { Package } from "@malphite-tools/utils/workspace";
 import type { UserConfig } from "vite";
 
-export function ceateHTMLTargetConfig(pkg: Package): UserConfig {
+export function createHTMLTargetConfig(pkg: Package): UserConfig {
   return {
     root: pkg.path.value,
     base: "/",
