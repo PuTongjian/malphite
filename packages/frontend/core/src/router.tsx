@@ -1,8 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
-import { siteService } from "./modules/site/site-service";
+import { useService } from "./framework/react";
+import { SiteService } from "./modules/site/site-service";
 import { useLiveState } from "./shared/use-live-state";
 
 function HomePage() {
+  const siteService = useService(SiteService);
   const title = useLiveState(siteService.title$);
 
   return (

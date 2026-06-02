@@ -7,5 +7,3 @@ export class SiteService {
     this.title$.set(title);
   }
 }
-
-export const siteService = new SiteService();

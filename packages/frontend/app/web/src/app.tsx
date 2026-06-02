@@ -1,14 +1,14 @@
 import {
   AppShell,
+  configureCommonModules,
   Framework,
   FrameworkRoot,
   router,
-  SiteService,
 } from "@malphite/core";
 import { RouterProvider } from "react-router-dom";
 
 const framework = new Framework();
-framework.service(SiteService, new SiteService());
+configureCommonModules(framework);
 
 export function App() {
   return (
