@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import { useService } from "./framework/react";
 import { SiteService } from "./modules/site/site-service";
+import { WorkspacePage } from "./pages/workspace-page";
 import { useLiveState } from "./shared/use-live-state";
 
 function HomePage() {
@@ -27,4 +28,5 @@ function AboutPage() {
 export const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
   { path: "/about", element: <AboutPage /> },
+  { path: "/workspace/:workspaceId", element: <WorkspacePage /> },
 ]);
