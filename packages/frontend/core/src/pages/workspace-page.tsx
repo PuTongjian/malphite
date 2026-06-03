@@ -2,12 +2,12 @@ import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useService } from "../framework/react";
 import { WorkspaceService } from "../modules/workspace/workspace-service";
-import { useLiveState } from "../shared/use-live-state";
+import { useLiveData } from "../shared/use-live-data";
 
 export function WorkspacePage() {
   const { workspaceId } = useParams();
   const workspaceService = useService(WorkspaceService);
-  const current = useLiveState(workspaceService.current$);
+  const current = useLiveData(workspaceService.current$);
 
   useEffect(() => {
     if (workspaceId) {

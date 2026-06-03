@@ -2,11 +2,11 @@ import { createBrowserRouter } from "react-router-dom";
 import { useService } from "./framework/react";
 import { SiteService } from "./modules/site/site-service";
 import { WorkspacePage } from "./pages/workspace-page";
-import { useLiveState } from "./shared/use-live-state";
+import { useLiveData } from "./shared/use-live-data";
 
 function HomePage() {
   const siteService = useService(SiteService);
-  const title = useLiveState(siteService.title$);
+  const title = useLiveData(siteService.title$);
 
   return (
     <div>

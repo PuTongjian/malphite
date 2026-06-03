@@ -1,3 +1,4 @@
+import "./setup";
 import {
   AppShell,
   configureCommonModules,

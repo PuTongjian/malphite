@@ -1,4 +1,4 @@
-import { LiveState } from "../../shared/live-state";
+import { LiveData } from "../../shared/live-data";
 
 export type Workspace = {
   id: string;
@@ -6,11 +6,11 @@ export type Workspace = {
 };
 
 export class WorkspaceService {
-  workspaces$ = new LiveState<Workspace[]>([
+  workspaces$ = new LiveData<Workspace[]>([
     { id: "local", name: "Local Workspace" },
   ]);
 
-  current$ = new LiveState<Workspace | null>(null);
+  current$ = new LiveData<Workspace | null>(null);
 
   open(id: string) {
     const workspace = this.workspaces$.value.find((item) => item.id === id);
