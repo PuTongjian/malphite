@@ -3,6 +3,6 @@ import { SiteService } from "./site/site-service";
 import { WorkspaceService } from "./workspace/workspace-service";
 
 export function configureCommonModules(framework: Framework) {
-  framework.service(SiteService, new SiteService());
-  framework.service(WorkspaceService, new WorkspaceService());
+  framework.service(SiteService, () => new SiteService());
+  framework.service(WorkspaceService, () => new WorkspaceService());
 }

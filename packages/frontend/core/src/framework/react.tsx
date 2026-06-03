@@ -1,12 +1,12 @@
 import { createContext, type PropsWithChildren, useContext } from "react";
-import type { Framework } from "./framework";
+import type { Constructor, FrameworkProvider } from "./framework";
 
-const FrameworkContext = createContext<Framework | null>(null);
+const FrameworkContext = createContext<FrameworkProvider | null>(null);
 
 export function FrameworkRoot({
   framework,
   children,
-}: PropsWithChildren<{ framework: Framework }>) {
+}: PropsWithChildren<{ framework: FrameworkProvider }>) {
   return (
     <FrameworkContext.Provider value={framework}>
       {children}
@@ -14,12 +14,16 @@ export function FrameworkRoot({
   );
 }
 
-export function useService<T>(token: new (...args: never[]) => T): T {
-  const framework = useContext(FrameworkContext);
+export function useFrameworkProvider() {
+  const provider = useContext(FrameworkContext);
 
-  if (!framework) {
+  if (!provider) {
     throw new Error("FrameworkRoot is missing");
   }
 
-  return framework.get(token);
+  return provider;
+}
+
+export function useService<T>(token: Constructor<T>): T {
+  return useFrameworkProvider().get(token);
 }
