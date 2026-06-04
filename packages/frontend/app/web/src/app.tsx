@@ -11,9 +11,11 @@ import { RouterProvider } from "react-router-dom";
 const framework = new Framework();
 configureCommonModules(framework);
 
+const frameworkProvider = framework.provider();
+
 export function App() {
   return (
-    <FrameworkRoot framework={framework}>
+    <FrameworkRoot framework={frameworkProvider}>
       <AppShell>
         <RouterProvider router={router} />
       </AppShell>
