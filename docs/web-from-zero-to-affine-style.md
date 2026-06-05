@@ -13,8 +13,8 @@ packages/frontend/app/web
 packages/frontend/core
   src/components/app-shell.tsx
   src/router.tsx
-  src/shared/live-state.ts
-  src/shared/use-live-state.ts
+  src/shared/live-data.ts
+  src/shared/use-live-data.ts
   src/framework/framework.ts
   src/framework/react.tsx
   src/modules/index.ts
@@ -23,11 +23,13 @@ packages/frontend/core
   src/pages/workspace-page.tsx
 ```
 
+和原版教程相比，当前仓库已经完成了前 6 步的基础设施（LiveData、Framework provider/cache、React context、模块注册、web app 装配），但 `WorkspaceService` 是一个“合并版”（同时持有全局列表和 current），还没有拆出 workspace scope。
+
 目标不是复制完整 AFFiNE，而是按更小的实现理解它：
 
 ```text
 setup
-  -> LiveState
+  -> LiveData
   -> FrameworkProvider
   -> module registration
   -> workspace scope
@@ -46,374 +48,41 @@ setup
 
 ---
 
-## 1. 接入 setup
+## 1-6. 基础设施（当前仓库已完成）
 
-目标：让 `setup.ts` 成为浏览器 bootstrap 层，而不是一个空文件。
+以下步骤在当前仓库中已经完成，不需要再做。列出供对照：
 
-修改 `packages/frontend/app/web/src/index.tsx`：
+| 步骤 | 内容 | 当前状态 |
+|---|---|---|
+| 1 | `setup.ts` 作为浏览器 bootstrap 层 | `app.tsx` 中 `import "./setup"`，`setup.ts` 已有错误监听 |
+| 2 | `LiveData` + `useLiveData` | `src/shared/live-data.ts`、`src/shared/use-live-data.ts` 已存在 |
+| 3 | `Framework` 改为 provider/cache | `src/framework/framework.ts` 已支持懒创建、缓存、`createChild` |
+| 4 | React 层使用 `FrameworkRoot` + `useService` | `src/framework/react.tsx` 已实现 |
+| 5 | `configureCommonModules` 注册 factory | `src/modules/index.ts` 已用 `framework.service(Token, () => new ...)` |
+| 6 | Web App 创建 provider | `app.tsx` 已装配 `Framework` -> `configureCommonModules` -> `frameworkProvider` -> `FrameworkRoot` |
 
-```tsx
-import "./setup";
-
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import { App } from "./app";
-
-function mountApp() {
-  const root = document.querySelector("#root");
-  if (!root) {
-    throw new Error("Root element #root not found");
-  }
-
-  createRoot(root).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-}
-
-try {
-  mountApp();
-} catch (error) {
-  console.error("[malphite] failed to bootstrap app", error);
-}
-```
-
-修改 `packages/frontend/app/web/src/setup.ts`：
-
-```ts
-console.info("[malphite] bootstrap browser environment");
-
-window.addEventListener("error", (event) => {
-  console.error("[malphite] uncaught error", event.error);
-});
-
-window.addEventListener("unhandledrejection", (event) => {
-  console.error("[malphite] unhandled rejection", event.reason);
-});
-```
-
-对照 AFFiNE：
-
-```text
-/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/apps/web/src/index.tsx
-/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/apps/web/src/setup.ts
-```
-
-AFFiNE 的 `setup.ts` 做的是浏览器环境、cleanup、theme 初始化。你的学习版先只做错误监听。
-
-验收：
+验收确认：
 
 ```bash
 pnpm malphite web dev
 ```
 
-浏览器控制台能看到 bootstrap 日志。
+首页 `/` 和 `/about` 能正常打开，Rename 按钮能触发渲染。
 
 ---
 
-## 2. 升级 LiveState 和 useLiveState
+## 7. 拆出 WorkspacesService、WorkspaceScope 和 WorkspaceService
 
-目标：让响应式状态更接近 AFFiNE 的 `LiveData + useLiveData`，但先不引入 RxJS。
+目标：区分“全局 workspace 列表服务”和“当前 workspace scope 内服务”。
 
-修改 `packages/frontend/core/src/shared/live-state.ts`：
+当前 `workspace-service.ts` 是一个合并版，同时管了全局列表和 current。现在把它拆成两个 service：
+
+**第一步**：把现有的 `workspace-service.ts` 改名为 `workspaces-service.ts`，并去掉 `current$` 和 `open()`：
+
+修改 `packages/frontend/core/src/modules/workspace/workspaces-service.ts`（由旧的 `workspace-service.ts` 改名而来）：
 
 ```ts
-type Listener = () => void;
-
-export class LiveState<T> {
-  private listeners = new Set<Listener>();
-
-  constructor(private current: T) {}
-
-  get value() {
-    return this.current;
-  }
-
-  set(value: T) {
-    if (Object.is(this.current, value)) {
-      return;
-    }
-
-    this.current = value;
-
-    for (const listener of this.listeners) {
-      listener();
-    }
-  }
-
-  subscribe(listener: Listener) {
-    this.listeners.add(listener);
-
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  map<R>(mapper: (value: T) => R) {
-    const mapped = new LiveState(mapper(this.value));
-
-    this.subscribe(() => {
-      mapped.set(mapper(this.value));
-    });
-
-    return mapped;
-  }
-}
-```
-
-修改 `packages/frontend/core/src/shared/use-live-state.ts`：
-
-```tsx
-import { useSyncExternalStore } from "react";
-import type { LiveState } from "./live-state";
-
-export function useLiveState<T>(state: LiveState<T>) {
-  return useSyncExternalStore(
-    (listener) => state.subscribe(listener),
-    () => state.value,
-    () => state.value,
-  );
-}
-```
-
-对照 AFFiNE：
-
-```text
-/Users/malphite/Desktop/Archive/AFFiNE/packages/common/infra/src/livedata/livedata.ts
-/Users/malphite/Desktop/Archive/AFFiNE/packages/common/infra/src/livedata/react.ts
-```
-
-验收：
-
-1. 首页 Rename 按钮仍然能触发渲染。
-2. 连续设置同一个值不会重复通知。
-3. 你能解释 `subscribe + getSnapshot` 为什么是外部 store 的最小协议。
-
----
-
-## 3. 把 Framework 改成 provider/cache
-
-目标：从“提前 new 好 instance”升级成“注册 factory，由 provider 懒创建并缓存”。
-
-修改 `packages/frontend/core/src/framework/framework.ts`：
-
-```ts
-export type Constructor<T> = new (...args: any[]) => T;
-export type Factory<T> = (provider: FrameworkProvider) => T;
-
-export class Framework {
-  private factories = new Map<Constructor<unknown>, Factory<unknown>>();
-
-  service<T>(token: Constructor<T>, factory: Factory<T>) {
-    this.factories.set(token, factory);
-    return this;
-  }
-
-  provider(parent: FrameworkProvider | null = null) {
-    return new FrameworkProvider(this, parent);
-  }
-
-  getFactory<T>(token: Constructor<T>) {
-    return this.factories.get(token) as Factory<T> | undefined;
-  }
-}
-
-export class FrameworkProvider {
-  private cache = new Map<Constructor<unknown>, unknown>();
-
-  constructor(
-    private framework: Framework,
-    private parent: FrameworkProvider | null = null,
-  ) {}
-
-  get<T>(token: Constructor<T>): T {
-    if (this.cache.has(token)) {
-      return this.cache.get(token) as T;
-    }
-
-    const factory = this.framework.getFactory(token);
-    if (!factory) {
-      if (this.parent) {
-        return this.parent.get(token);
-      }
-
-      throw new Error(`Service not found: ${token.name}`);
-    }
-
-    const instance = factory(this);
-    this.cache.set(token, instance);
-
-    return instance;
-  }
-
-  createChild(configure: (framework: Framework) => void) {
-    const childFramework = new Framework();
-    configure(childFramework);
-    return childFramework.provider(this);
-  }
-
-  dispose() {
-    for (const instance of this.cache.values()) {
-      const disposable = instance as { dispose?: () => void };
-      disposable.dispose?.();
-    }
-
-    this.cache.clear();
-  }
-}
-```
-
-`createChild()` 创建的是一个空的 child framework。它只注册当前 scope 自己的 service；找不到的 service 通过 parent fallback 回到根 provider。这样 workspace scope 不会意外复制一份全局 service。
-
-对照 AFFiNE：
-
-```text
-/Users/malphite/Desktop/Archive/AFFiNE/packages/common/infra/src/framework/core/framework.ts
-/Users/malphite/Desktop/Archive/AFFiNE/packages/common/infra/src/framework/core/provider.ts
-```
-
-真实 AFFiNE 多了 `service/store/entity/impl/scope/variant`。先不要复制，先理解 provider cache。
-
-验收：
-
-1. 不调用 `provider.get(Service)` 时，service 不会创建。
-2. 同一个 provider 多次 `get` 返回同一个实例。
-3. `dispose()` 会清空当前 provider 的 cache。
-
----
-
-## 4. React 层使用 FrameworkProvider
-
-目标：React context 保存 provider，而不是保存 framework 注册表。
-
-修改 `packages/frontend/core/src/framework/react.tsx`：
-
-```tsx
-import { createContext, type PropsWithChildren, useContext } from "react";
-import type { Constructor, FrameworkProvider } from "./framework";
-
-const FrameworkContext = createContext<FrameworkProvider | null>(null);
-
-export function FrameworkRoot({
-  framework,
-  children,
-}: PropsWithChildren<{ framework: FrameworkProvider }>) {
-  return (
-    <FrameworkContext.Provider value={framework}>
-      {children}
-    </FrameworkContext.Provider>
-  );
-}
-
-export function useFrameworkProvider() {
-  const provider = useContext(FrameworkContext);
-
-  if (!provider) {
-    throw new Error("FrameworkRoot is missing");
-  }
-
-  return provider;
-}
-
-export function useService<T>(token: Constructor<T>) {
-  return useFrameworkProvider().get(token);
-}
-```
-
-确认 `packages/frontend/core/src/index.ts` 导出这些能力：
-
-```ts
-export { AppShell } from "./components/app-shell";
-export { Framework } from "./framework/framework";
-export { FrameworkRoot, useFrameworkProvider, useService } from "./framework/react";
-export { configureCommonModules } from "./modules";
-export { router } from "./router";
-```
-
-验收：
-
-页面仍然能通过 `useService(SiteService)` 拿到 service。
-
----
-
-## 5. 重写模块注册
-
-目标：`configureCommonModules` 注册 factory，而不是注册已经创建好的 instance。
-
-修改 `packages/frontend/core/src/modules/index.ts`：
-
-```ts
-import type { Framework } from "../framework/framework";
-import { SiteService } from "./site/site-service";
-
-export function configureCommonModules(framework: Framework) {
-  framework.service(SiteService, () => new SiteService());
-}
-```
-
-后面每新增一个模块，都回到这个文件增量注册。不要在这里提前 import 还不存在的文件。
-
-对照 AFFiNE：
-
-```text
-/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/core/src/modules/index.ts
-```
-
-AFFiNE 的 `configureCommonModules(framework)` 是所有业务模块的入口。`web/src/app.tsx` 不应该知道每个业务模块内部怎么注册。
-
----
-
-## 6. Web App 创建 provider
-
-目标：web 包只做平台装配，不直接持有业务 service。
-
-修改 `packages/frontend/app/web/src/app.tsx`：
-
-```tsx
-import {
-  AppShell,
-  configureCommonModules,
-  Framework,
-  FrameworkRoot,
-  router,
-} from "@malphite/core";
-import { RouterProvider } from "react-router-dom";
-
-const framework = new Framework();
-configureCommonModules(framework);
-
-const frameworkProvider = framework.provider();
-
-export function App() {
-  return (
-    <FrameworkRoot framework={frameworkProvider}>
-      <AppShell>
-        <RouterProvider router={router} />
-      </AppShell>
-    </FrameworkRoot>
-  );
-}
-```
-
-对照 AFFiNE：
-
-```text
-/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/apps/web/src/app.tsx
-```
-
-真实 AFFiNE 在这里还装配了 storage worker、i18n、theme cache、telemetry、popup provider、lifecycle。你的学习版先只装配 framework provider。
-
----
-
-## 7. 拆出 WorkspacesService 和 WorkspaceScope
-
-目标：区分“workspace 列表服务”和“当前 workspace scope 内服务”。
-
-新增 `packages/frontend/core/src/modules/workspace/workspaces-service.ts`：
-
-```ts
-import { LiveState } from "../../shared/live-state";
+import { LiveData } from "../../shared/live-data";
 
 export type WorkspaceMeta = {
   id: string;
@@ -421,7 +90,7 @@ export type WorkspaceMeta = {
 };
 
 export class WorkspacesService {
-  workspaces$ = new LiveState<WorkspaceMeta[]>([
+  workspaces$ = new LiveData<WorkspaceMeta[]>([
     { id: "local", name: "Local Workspace" },
     { id: "demo", name: "Demo Workspace" },
   ]);
@@ -432,7 +101,7 @@ export class WorkspacesService {
 }
 ```
 
-新增 `packages/frontend/core/src/modules/workspace/workspace-scope.ts`：
+**第二步**：新增 `packages/frontend/core/src/modules/workspace/workspace-scope.ts`：
 
 ```ts
 import type { WorkspaceMeta } from "./workspaces-service";
@@ -442,7 +111,7 @@ export class WorkspaceScope {
 }
 ```
 
-修改 `packages/frontend/core/src/modules/workspace/workspace-service.ts`：
+**第三步**：重写 `packages/frontend/core/src/modules/workspace/workspace-service.ts`：
 
 ```ts
 import { WorkspaceScope } from "./workspace-scope";
@@ -460,7 +129,7 @@ export class WorkspaceService {
 }
 ```
 
-回到 `packages/frontend/core/src/modules/index.ts`，注册 `WorkspacesService`：
+**第四步**：更新 `packages/frontend/core/src/modules/index.ts`，注册 `WorkspacesService`：
 
 ```ts
 import type { Framework } from "../framework/framework";
@@ -473,6 +142,8 @@ export function configureCommonModules(framework: Framework) {
     .service(WorkspacesService, () => new WorkspacesService());
 }
 ```
+
+> 注意：原来的 `WorkspaceService` 从 `modules/index.ts` 中移除，因为它不再是全局单例，而是在 workspace scope 内由 child provider 动态创建。
 
 对照 AFFiNE：
 
@@ -497,13 +168,15 @@ WorkspaceService  -> 管当前 workspace scope
 
 目标：进入 `/workspace/:workspaceId` 时创建 child provider，离开时 dispose。
 
-新增 `packages/frontend/core/src/pages/workspace-route.tsx`：
+**第一步**：删除旧的 `packages/frontend/core/src/pages/workspace-page.tsx`。
+
+**第二步**：新增 `packages/frontend/core/src/pages/workspace-route.tsx`：
 
 ```tsx
 import { type PropsWithChildren, useEffect, useMemo } from "react";
 import { Outlet, useParams } from "react-router-dom";
 import { FrameworkRoot, useFrameworkProvider, useService } from "../framework/react";
-import { useLiveState } from "../shared/use-live-state";
+import { useLiveData } from "../shared/use-live-data";
 import { WorkspaceScope } from "../modules/workspace/workspace-scope";
 import { WorkspaceService } from "../modules/workspace/workspace-service";
 import { WorkspacesService } from "../modules/workspace/workspaces-service";
@@ -514,7 +187,7 @@ function WorkspaceScopeRoot({
 }: PropsWithChildren<{ workspaceId: string }>) {
   const root = useFrameworkProvider();
   const workspacesService = useService(WorkspacesService);
-  const workspaces = useLiveState(workspacesService.workspaces$);
+  const workspaces = useLiveData(workspacesService.workspaces$);
   const meta = workspaces.find((workspace) => workspace.id === workspaceId);
 
   const provider = useMemo(() => {
@@ -665,7 +338,7 @@ AFFiNE 是 worker + IndexedDB + cloud storage。你的学习版先只做 localSt
 ```ts
 import { WorkspaceService } from "../workspace/workspace-service";
 import { DocStorageService } from "../storage/doc-storage-service";
-import { LiveState } from "../../shared/live-state";
+import { LiveData } from "../../shared/live-data";
 
 export type Doc = {
   id: string;
@@ -674,14 +347,14 @@ export type Doc = {
 };
 
 export class DocService {
-  docs$: LiveState<Doc[]>;
+  docs$: LiveData<Doc[]>;
 
   constructor(
     private workspaceService: WorkspaceService,
     private storage: DocStorageService,
   ) {
     const stored = this.storage.load(this.workspaceService.id);
-    this.docs$ = new LiveState(
+    this.docs$ = new LiveData(
       stored.length > 0
         ? stored
         : [{ id: "welcome", title: "Welcome", content: "Hello AFFiNE style" }],
@@ -765,11 +438,11 @@ import { WorkspaceRoute } from "./pages/workspace-route";
 import { AllDocsPage } from "./pages/workspace/all-docs-page";
 import { DocPage } from "./pages/workspace/doc-page";
 import { WorkspaceSettingsPage } from "./pages/workspace/settings-page";
-import { useLiveState } from "./shared/use-live-state";
+import { useLiveData } from "./shared/use-live-data";
 
 function HomePage() {
   const siteService = useService(SiteService);
-  const title = useLiveState(siteService.title$);
+  const title = useLiveData(siteService.title$);
 
   return (
     <div>
@@ -811,13 +484,13 @@ import { Link, useParams } from "react-router-dom";
 import { useService } from "../../framework/react";
 import { DocService } from "../../modules/doc/doc-service";
 import { WorkspaceService } from "../../modules/workspace/workspace-service";
-import { useLiveState } from "../../shared/use-live-state";
+import { useLiveData } from "../../shared/use-live-data";
 
 export function AllDocsPage() {
   const { workspaceId } = useParams();
   const workspace = useService(WorkspaceService);
   const docService = useService(DocService);
-  const docs = useLiveState(docService.docs$);
+  const docs = useLiveData(docService.docs$);
 
   return (
     <section>
@@ -843,12 +516,12 @@ export function AllDocsPage() {
 import { useParams } from "react-router-dom";
 import { useService } from "../../framework/react";
 import { DocService } from "../../modules/doc/doc-service";
-import { useLiveState } from "../../shared/use-live-state";
+import { useLiveData } from "../../shared/use-live-data";
 
 export function DocPage() {
   const { docId } = useParams();
   const docService = useService(DocService);
-  const docs = useLiveState(docService.docs$);
+  const docs = useLiveData(docService.docs$);
   const doc = docs.find((item) => item.id === docId);
 
   if (!doc) {
@@ -908,7 +581,7 @@ export function WorkspaceSettingsPage() {
 新增 `packages/frontend/core/src/modules/workbench/workbench-service.ts`：
 
 ```ts
-import { LiveState } from "../../shared/live-state";
+import { LiveData } from "../../shared/live-data";
 
 export type View = {
   id: string;
@@ -916,8 +589,8 @@ export type View = {
 };
 
 export class WorkbenchService {
-  views$ = new LiveState<View[]>([{ id: "main", path: "/all" }]);
-  activeViewId$ = new LiveState("main");
+  views$ = new LiveData<View[]>([{ id: "main", path: "/all" }]);
+  activeViewId$ = new LiveData("main");
 
   open(path: string) {
     const view = {
@@ -1089,19 +762,13 @@ main thread client
 
 按这个顺序提交，每一步都能独立运行：
 
-1. 接入 `setup.ts`。
-2. 升级 `LiveState` / `useLiveState`。
-3. 改造 `Framework` 为 provider/cache。
-4. React context 改成保存 provider。
-5. `configureCommonModules` 改成注册 factory。
-6. `web/src/app.tsx` 创建 `frameworkProvider`。
-7. 拆出 `WorkspacesService` / `WorkspaceScope` / `WorkspaceService`。
-8. 增加 `WorkspaceRoute` 和 child provider。
-9. 增加 `DocStorageService` 和 localStorage driver。
-10. 增加 `DocService`。
-11. 重写 workspace 内部路由。
-12. 增加最小 `WorkbenchService`。
-13. 再考虑 worker RPC 学习版。
+1. 拆出 `WorkspacesService` / `WorkspaceScope` / `WorkspaceService`（第 7 步）。
+2. 增加 `WorkspaceRoute` 和 child provider，删除旧 `workspace-page.tsx`（第 8 步）。
+3. 增加 `DocStorageService` 和 localStorage driver（第 9 步）。
+4. 增加 `DocService`（第 10 步）。
+5. 重写 workspace 内部路由和三个页面（第 11 步）。
+6. 增加最小 `WorkbenchService`（第 12 步）。
+7. 再考虑 worker RPC 学习版（第 13 步）。
 
 每一步验收：
 
