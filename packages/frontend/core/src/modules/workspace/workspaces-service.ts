@@ -1,4 +1,4 @@
-import { LiveData } from "../../shared/live-data";
+import { LiveData } from "~/src/shared/live-data";
 
 export type WorkspaceMeta = {
   id: string;

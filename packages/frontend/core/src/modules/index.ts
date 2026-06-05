@@ -1,4 +1,4 @@
-import type { Framework } from "../framework/framework";
+import type { Framework } from "~/src/framework/framework";
 import { SiteService } from "./site/site-service";
 import { WorkspacesService } from "./workspace/workspaces-service";
 

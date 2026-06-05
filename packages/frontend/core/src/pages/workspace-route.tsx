@@ -4,11 +4,11 @@ import {
   FrameworkRoot,
   useFrameworkProvider,
   useService,
-} from "../framework/react";
-import { WorkspaceScope } from "../modules/workspace/workspace-scope";
-import { WorkspaceService } from "../modules/workspace/workspace-service";
-import { WorkspacesService } from "../modules/workspace/workspaces-service";
-import { useLiveData } from "../shared/use-live-data";
+} from "~/src/framework/react";
+import { WorkspaceScope } from "~/src/modules/workspace/workspace-scope";
+import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
+import { WorkspacesService } from "~/src/modules/workspace/workspaces-service";
+import { useLiveData } from "~/src/shared/use-live-data";
 
 function WorkspaceScopeRoot({
   workspaceId,
