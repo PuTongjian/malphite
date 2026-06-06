@@ -5,6 +5,8 @@ import {
   useFrameworkProvider,
   useService,
 } from "~/src/framework/react";
+import { DocService } from "~/src/modules/doc/doc-service";
+import { DocStorageService } from "~/src/modules/storage/doc-storage-service";
 import { WorkspaceScope } from "~/src/modules/workspace/workspace-scope";
 import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
 import { WorkspacesService } from "~/src/modules/workspace/workspaces-service";
@@ -27,10 +29,15 @@ function WorkspaceScopeRoot({
     return root.createChild((framework) => {
       framework
         .service(WorkspaceScope, () => new WorkspaceScope(meta))
-        .service(
-          WorkspaceService,
-          (provider) => new WorkspaceService(provider.get(WorkspaceScope)),
-        );
+        .service(WorkspaceService, (provider) => {
+          return new WorkspaceService(provider.get(WorkspaceScope));
+        })
+        .service(DocService, (provider) => {
+          return new DocService(
+            provider.get(WorkspaceService),
+            provider.get(DocStorageService),
+          );
+        });
     });
   }, [meta, root]);
 

@@ -33,8 +33,9 @@ setup
   -> FrameworkProvider
   -> module registration
   -> workspace scope
-  -> docs
+  -> doc model
   -> storage
+  -> doc service
   -> workbench
 ```
 
@@ -232,6 +233,22 @@ export function WorkspaceRoute() {
 }
 ```
 
+**第三步**：更新 `packages/frontend/core/src/router.tsx`，让 workspace 路由使用新的 scope root。
+
+如果文件里还在引用旧的 `WorkspacePage`，删除旧 import，改成：
+
+```tsx
+import { WorkspaceRoute } from "./pages/workspace-route";
+
+export const router = createBrowserRouter([
+  { path: "/", element: <HomePage /> },
+  { path: "/about", element: <AboutPage /> },
+  { path: "/workspace/:workspaceId", element: <WorkspaceRoute /> },
+]);
+```
+
+验收：`/workspace/local` 不因为缺少 workspace scope 报错。此时 `WorkspaceRoute` 里面还是空 `Outlet`，页面没有内容是正常的，具体页面会在第 11 步接上。
+
 对照 AFFiNE：
 
 ```text
@@ -251,14 +268,26 @@ workspacesService.open(...)
 
 ---
 
-## 9. 增加 DocStorage
+## 9. 增加 Doc 类型和 DocStorage
 
-目标：让文档数据依赖存储接口，而不是直接写死 localStorage。
+目标：先定义文档数据形状，再让文档数据依赖存储接口，而不是直接写死 localStorage。
+
+不要让 `DocStorageService` 从第 10 步才会创建的 `doc-service.ts` 里 import `Doc`。否则第 9 步会反向依赖第 10 步，单独实现第 9 步时会断。
+
+先新增 `packages/frontend/core/src/modules/doc/doc-types.ts`：
+
+```ts
+export type Doc = {
+  id: string;
+  title: string;
+  content: string;
+};
+```
 
 新增 `packages/frontend/core/src/modules/storage/doc-storage-service.ts`：
 
 ```ts
-import type { Doc } from "../doc/doc-service";
+import type { Doc } from "../doc/doc-types";
 
 export type DocStorageDriver = {
   load(workspaceId: string): Doc[];
@@ -281,7 +310,7 @@ export class DocStorageService {
 新增 `packages/frontend/core/src/modules/storage/local-doc-storage-driver.ts`：
 
 ```ts
-import type { Doc } from "../doc/doc-service";
+import type { Doc } from "../doc/doc-types";
 import type { DocStorageDriver } from "./doc-storage-service";
 
 export class LocalDocStorageDriver implements DocStorageDriver {
@@ -327,6 +356,8 @@ export function configureCommonModules(framework: Framework) {
 
 AFFiNE 是 worker + IndexedDB + cloud storage。你的学习版先只做 localStorage driver。
 
+> 如果类型检查提示 `localStorage`、`crypto`、`Worker` 或 `MessageEvent` 不存在，说明当前前端 tsconfig 没有包含浏览器类型。给前端包的 tsconfig 增加 `"lib": ["ES2024", "DOM", "DOM.Iterable"]`，不要把这个问题归到 storage 代码本身。
+
 ---
 
 ## 10. 增加 DocService
@@ -339,12 +370,7 @@ AFFiNE 是 worker + IndexedDB + cloud storage。你的学习版先只做 localSt
 import { WorkspaceService } from "../workspace/workspace-service";
 import { DocStorageService } from "../storage/doc-storage-service";
 import { LiveData } from "../../shared/live-data";
-
-export type Doc = {
-  id: string;
-  title: string;
-  content: string;
-};
+import type { Doc } from "./doc-types";
 
 export class DocService {
   docs$: LiveData<Doc[]>;
@@ -415,6 +441,8 @@ import { DocService } from "../modules/doc/doc-service";
 import { DocStorageService } from "../modules/storage/doc-storage-service";
 ```
 
+这里不需要在 child provider 里重新注册 `DocStorageService`。它已经在 root provider 注册，child provider 找不到本地 service 时会向 parent provider 查找。
+
 对照 AFFiNE：
 
 ```text
@@ -480,14 +508,13 @@ export const router = createBrowserRouter([
 新增 `packages/frontend/core/src/pages/workspace/all-docs-page.tsx`：
 
 ```tsx
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useService } from "../../framework/react";
 import { DocService } from "../../modules/doc/doc-service";
 import { WorkspaceService } from "../../modules/workspace/workspace-service";
 import { useLiveData } from "../../shared/use-live-data";
 
 export function AllDocsPage() {
-  const { workspaceId } = useParams();
   const workspace = useService(WorkspaceService);
   const docService = useService(DocService);
   const docs = useLiveData(docService.docs$);
@@ -501,7 +528,7 @@ export function AllDocsPage() {
       <ul>
         {docs.map((doc) => (
           <li key={doc.id}>
-            <Link to={`/workspace/${workspaceId}/${doc.id}`}>{doc.title}</Link>
+            <Link to={`/workspace/${workspace.id}/${doc.id}`}>{doc.title}</Link>
           </li>
         ))}
       </ul>
@@ -610,6 +637,25 @@ export class WorkbenchService {
 }
 ```
 
+在第 8 步的 `WorkspaceScopeRoot` 里注册它，让每个 workspace 有自己的 workbench 状态：
+
+```ts
+import { WorkbenchService } from "../modules/workbench/workbench-service";
+
+framework
+  .service(WorkspaceScope, () => new WorkspaceScope(meta))
+  .service(WorkspaceService, (provider) => {
+    return new WorkspaceService(provider.get(WorkspaceScope));
+  })
+  .service(DocService, (provider) => {
+    return new DocService(
+      provider.get(WorkspaceService),
+      provider.get(DocStorageService),
+    );
+  })
+  .service(WorkbenchService, () => new WorkbenchService());
+```
+
 先不要接 UI。只要理解：
 
 ```text
@@ -634,6 +680,8 @@ Workbench:
 ## 13. worker 存储只做 RPC 学习版
 
 目标：理解 AFFiNE 为什么把存储放到 worker。
+
+注意：第 9 步的 `DocStorageDriver` 是同步接口，而 worker RPC 天然是异步接口。本节先做独立 RPC 学习版，不直接替换 `LocalDocStorageDriver`。如果要真的接入 `DocService`，需要先把 `DocStorageDriver.load/save` 和 `DocService` 初始化流程改成异步，并处理 loading/error 状态。
 
 不要一开始复制 `nbstore`。先只支持两个操作：
 
@@ -682,19 +730,28 @@ export function request<T>(
 学习版 worker：
 
 ```ts
+type LoadDocsPayload = {
+  workspaceId: string;
+};
+
+type SaveDocsPayload = {
+  workspaceId: string;
+  docs: unknown[];
+};
+
 const docs = new Map<string, unknown[]>();
 
 self.addEventListener("message", (event) => {
   const { id, method, payload } = event.data;
 
   if (method === "loadDocs") {
-    const { workspaceId } = payload;
+    const { workspaceId } = payload as LoadDocsPayload;
     self.postMessage({ id, result: docs.get(workspaceId) ?? [] });
     return;
   }
 
   if (method === "saveDocs") {
-    const { workspaceId, docs: nextDocs } = payload;
+    const { workspaceId, docs: nextDocs } = payload as SaveDocsPayload;
     docs.set(workspaceId, nextDocs);
     self.postMessage({ id, result: null });
     return;
@@ -763,20 +820,20 @@ main thread client
 按这个顺序提交，每一步都能独立运行：
 
 1. 拆出 `WorkspacesService` / `WorkspaceScope` / `WorkspaceService`（第 7 步）。
-2. 增加 `WorkspaceRoute` 和 child provider，删除旧 `workspace-page.tsx`（第 8 步）。
-3. 增加 `DocStorageService` 和 localStorage driver（第 9 步）。
+2. 增加 `WorkspaceRoute` 和 child provider，删除旧 `workspace-page.tsx`，并更新 `router.tsx`（第 8 步）。
+3. 增加独立 `Doc` 类型、`DocStorageService` 和 localStorage driver（第 9 步）。
 4. 增加 `DocService`（第 10 步）。
 5. 重写 workspace 内部路由和三个页面（第 11 步）。
-6. 增加最小 `WorkbenchService`（第 12 步）。
+6. 增加最小 `WorkbenchService`，并注册到 workspace child provider（第 12 步）。
 7. 再考虑 worker RPC 学习版（第 13 步）。
 
-每一步验收：
+每个提交至少确认开发服务能启动：
 
 ```bash
 pnpm malphite web dev
 ```
 
-至少确认：
+第 9 步只提供存储能力，第 10 步只提供 scope 内的 doc service，还没有页面入口。完成第 11 步后，再至少确认：
 
 1. 首页能打开。
 2. `/about` 能打开。
@@ -803,8 +860,8 @@ pnpm malphite web dev
 ```text
 provider/cache
   -> workspace scope
-  -> doc service
   -> storage driver
+  -> doc service
 ```
 
 worker、Workbench、Yjs、BlockSuite 都应该在这些跑通后再学。
