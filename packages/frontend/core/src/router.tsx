@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { WorkspaceSettingsPage } from "~/src/pages/workspace/settings-page";
 import { useService } from "./framework/react";
 import { SiteService } from "./modules/site/site-service";
 import { AllDocsPage } from "./pages/workspace/all-docs-page";
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="all" replace /> },
       { path: "all", element: <AllDocsPage /> },
       { path: ":docId", element: <DocPage /> },
+      { path: "settings", element: <WorkspaceSettingsPage /> },
     ],
   },
 ]);
