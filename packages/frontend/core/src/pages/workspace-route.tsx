@@ -7,6 +7,7 @@ import {
 } from "~/src/framework/react";
 import { DocService } from "~/src/modules/doc/doc-service";
 import { DocStorageService } from "~/src/modules/storage/doc-storage-service";
+import { WorkbenchService } from "~/src/modules/workbench/workbench-service";
 import { WorkspaceScope } from "~/src/modules/workspace/workspace-scope";
 import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
 import { WorkspacesService } from "~/src/modules/workspace/workspaces-service";
@@ -37,7 +38,8 @@ function WorkspaceScopeRoot({
             provider.get(WorkspaceService),
             provider.get(DocStorageService),
           );
-        });
+        })
+        .service(WorkbenchService, () => new WorkbenchService());
     });
   }, [meta, root]);
 
