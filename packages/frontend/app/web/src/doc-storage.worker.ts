@@ -24,6 +24,8 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
       } satisfies WorkerResponse<"saveDocs">);
       return;
     }
+
+    self.postMessage({ id, error: `Unknown method: ${method}` });
   } catch (error) {
     self.postMessage({
       id,

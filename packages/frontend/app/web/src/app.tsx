@@ -10,7 +10,7 @@ import {
 } from "@malphite/core";
 import { RouterProvider } from "react-router-dom";
 
-const worker = new Worker(new URL("./doc-storage-worker.ts", import.meta.url), {
+const worker = new Worker(new URL("./doc-storage.worker.ts", import.meta.url), {
   type: "module",
 });
 
