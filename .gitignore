@@ -7,3 +7,6 @@ Thumbs.db
 
 # compiled output
 dist
+
+# agent files
+.vix
