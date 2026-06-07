@@ -1525,73 +1525,578 @@ WorkbenchService:
   activeViewId$ = "main"
 ```
 
-下一步新增：
+第 7 步只做一件事：让 workspace 内部先由 `WorkbenchService` 决定显示哪个
+view。浏览器 URL 和 active View 的同步留到第 8 步，所以这里不要急着做
+browser adapter。
+
+这一节完成后，workspace 下面的页面关系会变成：
+
+```text
+browser router:
+  /workspace/:workspaceId/*
+    -> WorkspaceRoute
+    -> WorkspaceScopeRoot
+    -> WorkbenchRoot
+
+WorkbenchRoot:
+  active view path "/all"
+    -> AllDocsPage
+
+  active view path "/settings"
+    -> WorkspaceSettingsPage
+
+  active view path "/welcome"
+    -> DocPageContent docId="welcome"
+```
+
+也就是说，React Router 在这一节只负责两件事：
+
+```text
+1. 根据 URL 找到 workspaceId
+2. 把 workspace scope 建起来
+```
+
+真正的 workspace 内部页面切换，开始交给 `WorkbenchService`。
+
+### 7.1 先补强 WorkbenchService
+
+当前仓库已经有：
+
+```text
+packages/frontend/core/src/modules/workbench/workbench-service.ts
+```
+
+但是它还只是一个最小状态容器。第 7 步需要让它能支撑基本 tab UI：
+
+```text
+open(path)
+  -> 已经打开过同一个 path：只激活旧 view
+  -> 没打开过：创建新 view 并激活
+
+activate(id)
+  -> 点击 tab 时切换 active view
+
+close(id)
+  -> 关闭 view
+  -> 如果关闭的是 active view，激活旁边的 view
+  -> 最后一个 view 不允许关闭
+```
+
+重写：
+
+```text
+packages/frontend/core/src/modules/workbench/workbench-service.ts
+```
+
+```ts
+import { LiveData } from "~/src/shared/live-data";
+
+export type View = {
+  id: string;
+  path: string;
+  title: string;
+};
+
+const MAIN_VIEW: View = {
+  id: "main",
+  path: "/all",
+  title: "All Docs",
+};
+
+function normalizePath(path: string) {
+  if (path === "" || path === "/") {
+    return "/all";
+  }
+
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+function getViewTitle(path: string) {
+  if (path === "/all") {
+    return "All Docs";
+  }
+
+  if (path === "/settings") {
+    return "Settings";
+  }
+
+  return path.slice(1);
+}
+
+function createView(path: string): View {
+  const normalizedPath = normalizePath(path);
+
+  return {
+    id: crypto.randomUUID(),
+    path: normalizedPath,
+    title: getViewTitle(normalizedPath),
+  };
+}
+
+export class WorkbenchService {
+  views$ = new LiveData<View[]>([MAIN_VIEW]);
+  activeViewId$ = new LiveData(MAIN_VIEW.id);
+
+  open(path: string) {
+    const normalizedPath = normalizePath(path);
+    const existing = this.views$.value.find((view) => {
+      return view.path === normalizedPath;
+    });
+
+    if (existing) {
+      this.activeViewId$.set(existing.id);
+      return existing;
+    }
+
+    const view = createView(normalizedPath);
+
+    this.views$.set([...this.views$.value, view]);
+    this.activeViewId$.set(view.id);
+
+    return view;
+  }
+
+  activate(id: string) {
+    const exists = this.views$.value.some((view) => {
+      return view.id === id;
+    });
+
+    if (exists) {
+      this.activeViewId$.set(id);
+    }
+  }
+
+  close(id: string) {
+    const views = this.views$.value;
+
+    if (views.length <= 1) {
+      return;
+    }
+
+    const closedIndex = views.findIndex((view) => {
+      return view.id === id;
+    });
+
+    if (closedIndex === -1) {
+      return;
+    }
+
+    const nextViews = views.filter((view) => {
+      return view.id !== id;
+    });
+
+    this.views$.set(nextViews);
+
+    if (this.activeViewId$.value === id) {
+      const nextActiveView = nextViews[Math.min(closedIndex, nextViews.length - 1)];
+      this.activeViewId$.set(nextActiveView?.id ?? "");
+    }
+  }
+}
+```
+
+这仍然不是 AFFiNE 的最终结构。真实 AFFiNE 会把 view 做成 entity，并给每个
+view 独立的 location、history、scope。学习版先保持 plain object，等第 9 步再
+升级。
+
+### 7.2 新增 WorkbenchRoot
+
+新增：
 
 ```text
 packages/frontend/core/src/modules/workbench/workbench-root.tsx
 ```
 
-最小 UI：
+完整实现：
 
 ```tsx
 import { useService } from "~/src/framework/react";
-import { WorkbenchService } from "./workbench-service";
+import { AllDocsPage } from "~/src/pages/workspace/all-docs-page";
+import { DocPageContent } from "~/src/pages/workspace/doc-page";
+import { WorkspaceSettingsPage } from "~/src/pages/workspace/settings-page";
 import { useLiveData } from "~/src/shared/use-live-data";
+import { WorkbenchService } from "./workbench-service";
 
 export function WorkbenchRoot() {
   const workbench = useService(WorkbenchService);
   const views = useLiveData(workbench.views$);
   const activeViewId = useLiveData(workbench.activeViewId$);
-  const activeView = views.find(view => view.id === activeViewId) ?? views[0];
+  const activeView =
+    views.find((view) => view.id === activeViewId) ?? views[0];
 
   if (!activeView) {
     return null;
   }
 
   return (
-    <div>
-      <nav>
-        {views.map(view => (
-          <button
-            key={view.id}
-            type="button"
-            onClick={() => workbench.activeViewId$.set(view.id)}
-          >
-            {view.path}
+    <section>
+      <header>
+        <div role="tablist" aria-label="Workbench views">
+          {views.map((view) => (
+            <span key={view.id}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view.id === activeView.id}
+                onClick={() => workbench.activate(view.id)}
+              >
+                {view.title}
+              </button>
+              <button
+                type="button"
+                aria-label={`Close ${view.title}`}
+                disabled={views.length <= 1}
+                onClick={() => workbench.close(view.id)}
+              >
+                Close
+              </button>
+            </span>
+          ))}
+        </div>
+
+        <nav aria-label="Workspace tools">
+          <button type="button" onClick={() => workbench.open("/all")}>
+            All Docs
           </button>
-        ))}
-      </nav>
+          <button type="button" onClick={() => workbench.open("/settings")}>
+            Settings
+          </button>
+        </nav>
+      </header>
+
       <WorkbenchView path={activeView.path} />
-    </div>
+    </section>
+  );
+}
+
+function WorkbenchView({ path }: { path: string }) {
+  if (path === "/all") {
+    return <AllDocsPage />;
+  }
+
+  if (path === "/settings") {
+    return <WorkspaceSettingsPage />;
+  }
+
+  return <DocPageContent docId={path.slice(1)} />;
+}
+```
+
+这里刻意先用条件渲染，不要马上接 memory router。现在要学的是：
+
+```text
+WorkbenchService 的 active view
+  -> WorkbenchRoot 订阅 active view
+  -> WorkbenchView 根据 view.path 渲染页面
+```
+
+memory router 和 per-view scope 放到第 9 步。
+
+### 7.3 把 DocPage 拆成 prop 版内容组件
+
+当前 `DocPage` 从 `useParams()` 读 `docId`：
+
+```text
+browser route
+  -> useParams()
+  -> DocPage
+```
+
+接入 Workbench 后，doc 页面应该可以从 workbench view path 读取 doc id：
+
+```text
+workbench active view path "/welcome"
+  -> DocPageContent docId="welcome"
+```
+
+所以先把页面拆成两层：
+
+```text
+DocPageContent
+  只负责渲染 doc，docId 从 props 来
+
+DocPage
+  兼容旧 browser route 的 wrapper，从 useParams() 取 docId
+```
+
+重写：
+
+```text
+packages/frontend/core/src/pages/workspace/doc-page.tsx
+```
+
+```tsx
+import { useParams } from "react-router-dom";
+import { useService } from "~/src/framework/react";
+import { DocService } from "~/src/modules/doc/doc-service";
+import { useLiveData } from "~/src/shared/use-live-data";
+
+type DocPageContentProps = {
+  docId: string | undefined;
+};
+
+export function DocPageContent({ docId }: DocPageContentProps) {
+  const docService = useService(DocService);
+  const docs = useLiveData(docService.docs$);
+  const ready = useLiveData(docService.ready$);
+  const error = useLiveData(docService.error$);
+  const doc = docs.find((item) => item.id === docId);
+
+  if (error) {
+    return <div>{error.message}</div>;
+  }
+
+  if (!ready) {
+    return <div>Loading docs...</div>;
+  }
+
+  if (!docId) {
+    return <div>Doc id is missing</div>;
+  }
+
+  if (!doc) {
+    return <div>Doc not found</div>;
+  }
+
+  return (
+    <article>
+      <input
+        value={doc.title}
+        onChange={(event) => docService.rename(doc.id, event.target.value)}
+      />
+      <p>{doc.content || "Empty doc"}</p>
+    </article>
+  );
+}
+
+export function DocPage() {
+  const { docId } = useParams();
+
+  return <DocPageContent docId={docId} />;
+}
+```
+
+`DocPage` 这个 wrapper 现在看起来多余，但先保留。它让你能清楚看到两种入口的
+差异：
+
+```text
+旧入口:
+  browser route params -> DocPage -> DocPageContent
+
+新入口:
+  workbench view path -> WorkbenchView -> DocPageContent
+```
+
+### 7.4 AllDocsPage 不再用 Link 打开 doc
+
+当前 `AllDocsPage` 里点击 doc 是：
+
+```text
+Link to /workspace/:workspaceId/:docId
+```
+
+接入 Workbench 后，这里应该变成：
+
+```text
+workbench.open(`/${doc.id}`)
+```
+
+重写：
+
+```text
+packages/frontend/core/src/pages/workspace/all-docs-page.tsx
+```
+
+```tsx
+import { useService } from "~/src/framework/react";
+import { DocService } from "~/src/modules/doc/doc-service";
+import { WorkbenchService } from "~/src/modules/workbench/workbench-service";
+import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
+import { useLiveData } from "~/src/shared/use-live-data";
+
+export function AllDocsPage() {
+  const workspace = useService(WorkspaceService);
+  const docService = useService(DocService);
+  const workbench = useService(WorkbenchService);
+  const docs = useLiveData(docService.docs$);
+  const ready = useLiveData(docService.ready$);
+  const error = useLiveData(docService.error$);
+
+  function createDoc() {
+    const doc = docService.create("Untitled");
+    workbench.open(`/${doc.id}`);
+  }
+
+  if (error) {
+    return <div>{error.message}</div>;
+  }
+
+  if (!ready) {
+    return <div>Loading docs...</div>;
+  }
+
+  return (
+    <section>
+      <h1>{workspace.name}</h1>
+      <button type="button" onClick={createDoc}>
+        New Doc
+      </button>
+      <ul>
+        {docs.map((doc) => (
+          <li key={doc.id}>
+            <button type="button" onClick={() => workbench.open(`/${doc.id}`)}>
+              {doc.title}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 ```
 
-`WorkbenchView` 先用条件渲染，不要马上接 memory router：
+注意这个变化的含义：点击文档不再销毁当前 workspace route，也不会重新创建
+workspace scope。它只是在当前 workspace scope 内新增或激活一个 view。
+
+### 7.5 WorkspaceRoute 只负责打开 workspace scope
+
+当前 `WorkspaceRoute` 通过 `<Outlet />` 把 nested browser route 渲染出来。
+接入 Workbench 后，它应该只负责：
+
+```text
+从 URL 取 workspaceId
+  -> WorkspacesService.open(...)
+  -> FrameworkRoot 使用 workspaceRef.provider
+  -> 渲染 WorkbenchRoot
+  -> unmount 时 workspaceRef.dispose()
+```
+
+重写：
+
+```text
+packages/frontend/core/src/pages/workspace-route.tsx
+```
 
 ```tsx
-function WorkbenchView({ path }: { path: string }) {
-  if (path === "/all") return <AllDocsPage />;
-  if (path === "/settings") return <WorkspaceSettingsPage />;
-  return <DocPageFromWorkbench docId={path.slice(1)} />;
+import { useEffect, useMemo } from "react";
+import { useParams } from "react-router-dom";
+import {
+  FrameworkRoot,
+  useFrameworkProvider,
+  useService,
+} from "~/src/framework/react";
+import { WorkbenchRoot } from "~/src/modules/workbench/workbench-root";
+import { WorkspacesService } from "~/src/modules/workspace/workspaces-service";
+import { useLiveData } from "~/src/shared/use-live-data";
+
+function WorkspaceScopeRoot({ workspaceId }: { workspaceId: string }) {
+  const root = useFrameworkProvider();
+  const workspacesService = useService(WorkspacesService);
+  const workspaces = useLiveData(workspacesService.workspaces$);
+  const meta = workspaces.find((workspace) => workspace.id === workspaceId);
+
+  const workspaceRef = useMemo(() => {
+    if (!meta) {
+      return null;
+    }
+
+    return workspacesService.open(meta, root);
+  }, [meta, root, workspacesService]);
+
+  useEffect(() => {
+    return () => {
+      workspaceRef?.dispose();
+    };
+  }, [workspaceRef]);
+
+  if (!meta || !workspaceRef) {
+    return <div>Workspace not found</div>;
+  }
+
+  return (
+    <FrameworkRoot framework={workspaceRef.provider}>
+      <WorkbenchRoot />
+    </FrameworkRoot>
+  );
+}
+
+export function WorkspaceRoute() {
+  const { workspaceId } = useParams();
+
+  if (!workspaceId) {
+    return <div>Workspace id is missing</div>;
+  }
+
+  return <WorkspaceScopeRoot workspaceId={workspaceId} />;
 }
 ```
 
-`DocPageFromWorkbench` 是下一步要从现有 `DocPage` 拆出来的 prop 版组件。现有 `DocPage` 从 `useParams()` 读 `docId`；Workbench 版应该从 props 读 `docId`，这样它不依赖 browser route。
+这一步之后，workspace route 不再知道 `/all`、`/settings`、`/:docId` 这些
+workspace 内部页面。它只知道如何打开 workspace runtime。
 
-同时把 workspace route 改成只渲染：
+### 7.6 Router 改成 workspace wildcard
+
+最后更新 browser router。workspace route 要能接住
+`/workspace/local`、`/workspace/local/all`、`/workspace/local/welcome` 这些
+路径，但具体显示哪个 view 还不在这一节处理。
+
+重写 workspace route 部分：
+
+```text
+packages/frontend/core/src/router.tsx
+```
 
 ```tsx
-<WorkbenchRoot />
+import { createBrowserRouter } from "react-router-dom";
+import { useService } from "./framework/react";
+import { SiteService } from "./modules/site/site-service";
+import { WorkspaceRoute } from "./pages/workspace-route";
+import { useLiveData } from "./shared/use-live-data";
+
+function HomePage() {
+  const siteService = useService(SiteService);
+  const title = useLiveData(siteService.title$);
+
+  return (
+    <div>
+      <h1>{title}</h1>
+      <button
+        type="button"
+        onClick={() => siteService.rename("Malphite is the best!")}
+      >
+        Rename
+      </button>
+    </div>
+  );
+}
+
+function AboutPage() {
+  return <h1>关于</h1>;
+}
+
+export const router = createBrowserRouter([
+  { path: "/", element: <HomePage /> },
+  { path: "/about", element: <AboutPage /> },
+  { path: "/workspace/:workspaceId/*", element: <WorkspaceRoute /> },
+]);
 ```
+
+第 7 步里，`*` 只是为了让浏览器路由别挡住 workspace 内部路径。它还没有把
+`/workspace/local/welcome` 同步到 active view。这个同步就是第 8 步的
+browser router adapter。
 
 验收：
 
 1. `/workspace/local` 进入 workbench。
 2. 默认 view 是 `/all`。
-3. 点击 doc 时不是直接 `<Link>` 跳页面，而是 `workbench.open("/docId")`。
-4. 打开多个 doc 后，tab 列表能看到多个 view。
-5. 关闭 view 不会销毁整个 workspace scope。
+3. `/workspace/local/all` 也能进入 workbench，显示默认 `/all` view。
+4. 点击 doc 时不是直接 `<Link>` 跳页面，而是 `workbench.open("/docId")`。
+5. 点击已有 doc 会激活已存在的 view，不会重复打开相同 path。
+6. 打开多个 doc 后，tab 列表能看到多个 view。
+7. 关闭 active view 后，会激活旁边的 view。
+8. 关闭 view 不会销毁整个 workspace scope。
+9. 直接打开 `/workspace/local/welcome` 还不会自动激活 `/welcome` view，这是第
+   8 步要解决的问题。
 
 对照 AFFiNE：
 
@@ -1610,6 +2115,22 @@ Router:
 Workbench:
   workspace -> 多个 view
   view -> 自己的 path/history/scope/UI state
+```
+
+这一节最重要的变化不是 UI 多了 tab，而是职责边界变了：
+
+```text
+before:
+  browser router children
+    -> AllDocsPage / DocPage / WorkspaceSettingsPage
+
+after:
+  browser router
+    -> WorkspaceRoute
+    -> workspace scope
+    -> WorkbenchRoot
+    -> active view
+    -> AllDocsPage / DocPageContent / WorkspaceSettingsPage
 ```
 
 ---
