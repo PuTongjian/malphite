@@ -1196,17 +1196,100 @@ packages/frontend/core/src/index.ts
 
 ### 5.4 在 web app 使用 worker driver
 
-`app/web/src/app.tsx`：
+对照当前真实代码，`packages/frontend/app/web/src/app.tsx` 现在不是直接注册
+`DocStorageProvider`，而是调用 core 暴露的浏览器 storage 注册函数：
 
 ```ts
+configureCommonModules(framework);
+configureBrowserDocStorageModules(framework);
+```
+
+所以这里不要在 `app.tsx` 里绕过既有边界手写
+`framework.service(DocStorageProvider, ...)`。更合理的改法是让
+`configureBrowserDocStorageModules` 接收一个可替换 driver，默认仍然使用
+`LocalDocStorageDriver`。
+
+先更新：
+
+```text
+packages/frontend/core/src/modules/storage/index.ts
+```
+
+```ts
+import type { Framework } from "~/src/framework/framework";
+import type { DocStorageDriver } from "./doc-storage-service";
+import { DocStorageProvider } from "./doc-storage-provider";
+import { DocStorageService } from "./doc-storage-service";
+import { LocalDocStorageDriver } from "./local-doc-storage-driver";
+
+export { DocStorageProvider } from "./doc-storage-provider";
+export { DocStorageService } from "./doc-storage-service";
+export { LocalDocStorageDriver } from "./local-doc-storage-driver";
+export { WorkerDocStorageDriver } from "./worker-doc-storage-driver";
+
+export function configureDocStorageModule(framework: Framework) {
+  framework.service(DocStorageService, (provider) => {
+    return new DocStorageService(provider.get(DocStorageProvider));
+  });
+}
+
+export function configureBrowserDocStorageModules(
+  framework: Framework,
+  driver: DocStorageDriver = new LocalDocStorageDriver(),
+) {
+  framework.service(DocStorageProvider, () => {
+    return new DocStorageProvider(driver);
+  });
+}
+```
+
+再更新 public export。当前 `packages/frontend/core/src/index.ts` 已经导出了
+`Doc`、`WorkerRequest`、`WorkerResponse`，这里只需要把
+`WorkerDocStorageDriver` 加进 storage export：
+
+```text
+packages/frontend/core/src/index.ts
+```
+
+```ts
+export {
+  configureBrowserDocStorageModules,
+  WorkerDocStorageDriver,
+} from "./modules/storage";
+```
+
+最后才改 web app：
+
+```text
+packages/frontend/app/web/src/app.tsx
+```
+
+```ts
+import {
+  AppShell,
+  configureBrowserDocStorageModules,
+  configureCommonModules,
+  Framework,
+  FrameworkRoot,
+  router,
+  WorkerDocStorageDriver,
+} from "@malphite/core";
+
 const worker = new Worker(new URL("./doc-storage.worker.ts", import.meta.url), {
   type: "module",
 });
 
-framework.service(DocStorageProvider, () => {
-  return new DocStorageProvider(new WorkerDocStorageDriver(worker));
-});
+const framework = new Framework();
+configureCommonModules(framework);
+configureBrowserDocStorageModules(
+  framework,
+  new WorkerDocStorageDriver(worker),
+);
 ```
+
+`packages/frontend/core/src/modules/storage/worker-doc-storage-driver.ts` 当前已经有了
+`WorkerDocStorageDriver`。如果里面的私有方法还叫 `requset`，顺手改成
+`request`，调用点一起改；这是拼写修正，不改变行为。
 
 验收：
 

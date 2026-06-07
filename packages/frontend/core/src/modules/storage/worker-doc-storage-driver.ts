@@ -11,14 +11,14 @@ export class WorkerDocStorageDriver implements DocStorageDriver {
   constructor(private worker: Worker) {}
 
   load(workspaceId: string) {
-    return this.requset("loadDocs", { workspaceId });
+    return this.request("loadDocs", { workspaceId });
   }
 
   async save(workspaceId: string, docs: Doc[]) {
-    await this.requset("saveDocs", { workspaceId, docs });
+    await this.request("saveDocs", { workspaceId, docs });
   }
 
-  private requset<M extends WorkerDocStorageMethod>(
+  private request<M extends WorkerDocStorageMethod>(
     method: M,
     payload: WorkerDocStorageOps[M]["input"],
   ) {
