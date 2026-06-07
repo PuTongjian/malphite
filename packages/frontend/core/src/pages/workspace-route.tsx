@@ -1,16 +1,16 @@
 import { type PropsWithChildren, useEffect, useMemo } from "react";
-import { Outlet, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   FrameworkRoot,
   useFrameworkProvider,
   useService,
 } from "~/src/framework/react";
+import { WorkbenchRoot } from "~/src/modules/workbench/workbench-root";
 import { WorkspacesService } from "~/src/modules/workspace/workspaces-service";
 import { useLiveData } from "~/src/shared/use-live-data";
 
 function WorkspaceScopeRoot({
   workspaceId,
-  children,
 }: PropsWithChildren<{ workspaceId: string }>) {
   const root = useFrameworkProvider();
   const workspacesService = useService(WorkspacesService);
@@ -36,7 +36,9 @@ function WorkspaceScopeRoot({
   }
 
   return (
-    <FrameworkRoot framework={workspaceRef.provider}>{children}</FrameworkRoot>
+    <FrameworkRoot framework={workspaceRef.provider}>
+      <WorkbenchRoot />
+    </FrameworkRoot>
   );
 }
 
@@ -47,9 +49,5 @@ export function WorkspaceRoute() {
     return <div>Workspace id is missing</div>;
   }
 
-  return (
-    <WorkspaceScopeRoot workspaceId={workspaceId}>
-      <Outlet />
-    </WorkspaceScopeRoot>
-  );
+  return <WorkspaceScopeRoot workspaceId={workspaceId} />;
 }
