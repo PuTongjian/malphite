@@ -1350,21 +1350,147 @@ value: Doc[]
 packages/frontend/app/web/src/doc-storage-idb.ts
 ```
 
-只暴露：
+这一节只替换 worker 内部的持久化后端，不再改
+`WorkerDocStorageDriver`、`DocStorageService`、
+`configureBrowserDocStorageModules`。第 5 步已经把主线程到 worker 的边界接好了，第 6 步只把 worker 内部的内存 `Map` 换成 `IndexedDB`。
+
+### 6.1 新增 IndexedDB helper
+
+`doc-storage-idb.ts` 只暴露 `loadDocs` / `saveDocs`：
 
 ```ts
-loadDocs(workspaceId: string): Promise<Doc[]>
-saveDocs(workspaceId: string, docs: Doc[]): Promise<void>
+import type { Doc } from "@malphite/core";
+
+const DB_NAME = "malphite-doc-storage";
+const STORE_NAME = "docs";
+const DB_VERSION = 1;
+
+let databasePromise: Promise<IDBDatabase> | null = null;
+
+function openDatabase() {
+  if (databasePromise) return databasePromise;
+
+  databasePromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
+
+    request.onerror = () => {
+      databasePromise = null;
+      reject(request.error ?? new Error(`Failed to open ${DB_NAME}`));
+    };
+  });
+
+  return databasePromise;
+}
+
+export async function loadDocs(workspaceId: string): Promise<Doc[]> {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const request =
+      tx.objectStore(STORE_NAME).get(workspaceId) as IDBRequest<Doc[] | undefined>;
+
+    request.onsuccess = () => resolve(request.result ?? []);
+    request.onerror = () => reject(request.error ?? new Error("Failed to load docs"));
+    tx.onabort = () => reject(tx.error ?? new Error("IndexedDB read aborted"));
+  });
+}
+
+export async function saveDocs(
+  workspaceId: string,
+  docs: Doc[],
+): Promise<void> {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(docs, workspaceId);
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("Failed to save docs"));
+    tx.onabort = () => reject(tx.error ?? new Error("IndexedDB write aborted"));
+  });
+}
 ```
 
-然后 worker handler 调用它。
+这里先不要抽象通用 `idb` layer。当前只有 worker 这一处浏览器持久化消费者，先把边界做实；等未来真的出现第二个浏览器存储消费者，再考虑是否上移。
 
-验收：
+### 6.2 worker 改成异步持久化
 
-1. 刷新页面后新建 doc 仍存在。
-2. 关闭 tab 再打开仍存在。
-3. local/demo 数据不串。
-4. DevTools Application -> IndexedDB 能看到 `malphite-doc-storage`。
+更新：
+
+```text
+packages/frontend/app/web/src/doc-storage.worker.ts
+```
+
+这里不要提前解构 `payload`，直接用 `request.method` 做类型收窄：
+
+```ts
+import type { WorkerRequest, WorkerResponse } from "@malphite/core";
+import { loadDocs, saveDocs } from "./doc-storage-idb";
+
+self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
+  void handleRequest(event.data);
+});
+
+async function handleRequest(request: WorkerRequest) {
+  try {
+    if (request.method === "loadDocs") {
+      const { workspaceId } = request.payload;
+      self.postMessage({
+        id: request.id,
+        result: await loadDocs(workspaceId),
+      } satisfies WorkerResponse<"loadDocs">);
+      return;
+    }
+
+    if (request.method === "saveDocs") {
+      const { workspaceId, docs } = request.payload;
+      await saveDocs(workspaceId, docs);
+      self.postMessage({
+        id: request.id,
+        result: null,
+      } satisfies WorkerResponse<"saveDocs">);
+      return;
+    }
+
+    self.postMessage({
+      id: request.id,
+      error: `Unknown method: ${request.method}`,
+    });
+  } catch (error) {
+    self.postMessage({
+      id: request.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+```
+
+这样改完以后，主线程的 `WorkerDocStorageDriver`、storage service、provider、以及
+`configureBrowserDocStorageModules` 都不需要再动。主线程继续只负责
+RPC 请求，worker 内部自己决定是用内存、IndexedDB，还是未来换成更复杂的存储实现。
+
+### 6.3 验收
+
+1. 刷新页面后，新建 doc 仍存在。
+2. 关闭 tab 后重新打开，新建 doc 仍存在。
+3. `local` / `demo` workspace 数据不串。
+4. DevTools `Application -> IndexedDB` 能看到 `malphite-doc-storage / docs`。
+5. 人工制造异常时，worker 仍然通过 `WorkerResponse.error` 把错误回传到主线程。
 
 对照 AFFiNE：
 

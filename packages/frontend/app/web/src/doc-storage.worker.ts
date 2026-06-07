@@ -1,23 +1,26 @@
-import type { Doc, WorkerRequest, WorkerResponse } from "@malphite/core";
-
-const docsByWorkspace = new Map<string, Doc[]>();
+import type { WorkerRequest, WorkerResponse } from "@malphite/core";
+import { loadDocs, saveDocs } from "./doc-storage-idb";
 
 self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
-  const { id, method, payload } = event.data;
+  void handleRequest(event.data);
+});
+
+async function handleRequest(request: WorkerRequest) {
+  const { id, method, payload } = request;
 
   try {
     if (method === "loadDocs") {
       const { workspaceId } = payload;
       self.postMessage({
         id,
-        result: docsByWorkspace.get(workspaceId) ?? [],
+        result: await loadDocs(workspaceId),
       } satisfies WorkerResponse<"loadDocs">);
       return;
     }
 
     if (method === "saveDocs") {
       const { workspaceId, docs } = payload;
-      docsByWorkspace.set(workspaceId, docs);
+      await saveDocs(workspaceId, docs);
       self.postMessage({
         id,
         result: null,
@@ -32,4 +35,4 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
       error: error instanceof Error ? error.message : String(error),
     });
   }
-});
+}
