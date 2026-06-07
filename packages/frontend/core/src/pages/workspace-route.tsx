@@ -5,11 +5,6 @@ import {
   useFrameworkProvider,
   useService,
 } from "~/src/framework/react";
-import { DocService } from "~/src/modules/doc/doc-service";
-import { DocStorageService } from "~/src/modules/storage/doc-storage-service";
-import { WorkbenchService } from "~/src/modules/workbench/workbench-service";
-import { WorkspaceScope } from "~/src/modules/workspace/workspace-scope";
-import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
 import { WorkspacesService } from "~/src/modules/workspace/workspaces-service";
 import { useLiveData } from "~/src/shared/use-live-data";
 
@@ -22,38 +17,27 @@ function WorkspaceScopeRoot({
   const workspaces = useLiveData(workspacesService.workspaces$);
   const meta = workspaces.find((workspace) => workspace.id === workspaceId);
 
-  const provider = useMemo(() => {
+  const workspaceRef = useMemo(() => {
     if (!meta) {
       return null;
     }
 
-    return root.createChild((framework) => {
-      framework
-        .service(WorkspaceScope, () => new WorkspaceScope(meta))
-        .service(WorkspaceService, (provider) => {
-          return new WorkspaceService(provider.get(WorkspaceScope));
-        })
-        .service(DocService, (provider) => {
-          return new DocService(
-            provider.get(WorkspaceService),
-            provider.get(DocStorageService),
-          );
-        })
-        .service(WorkbenchService, () => new WorkbenchService());
-    });
-  }, [meta, root]);
+    return workspacesService.open(meta, root);
+  }, [meta, root, workspacesService]);
 
   useEffect(() => {
     return () => {
-      provider?.dispose();
+      workspaceRef?.dispose();
     };
-  }, [provider]);
+  }, [workspaceRef]);
 
-  if (!meta || !provider) {
+  if (!meta || !workspaceRef) {
     return <div>Workspace not found</div>;
   }
 
-  return <FrameworkRoot framework={provider}>{children}</FrameworkRoot>;
+  return (
+    <FrameworkRoot framework={workspaceRef.provider}>{children}</FrameworkRoot>
+  );
 }
 
 export function WorkspaceRoute() {

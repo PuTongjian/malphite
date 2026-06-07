@@ -1,18 +1,19 @@
 import type { Doc } from "~/src/modules/doc/doc-types";
+import type { DocStorageProvider } from "./doc-storage-provider";
 
 export interface DocStorageDriver {
-  load(workspaceId: string): Doc[];
-  save(workspaceId: string, docs: Doc[]): void;
+  load(workspaceId: string): Promise<Doc[]>;
+  save(workspaceId: string, docs: Doc[]): Promise<void>;
 }
 
 export class DocStorageService {
-  constructor(private driver: DocStorageDriver) {}
+  constructor(private provider: DocStorageProvider) {}
 
   load(workspaceId: string) {
-    return this.driver.load(workspaceId);
+    return this.provider.driver.load(workspaceId);
   }
 
   save(workspaceId: string, docs: Doc[]) {
-    this.driver.save(workspaceId, docs);
+    this.provider.driver.save(workspaceId, docs);
   }
 }

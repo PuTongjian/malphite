@@ -1,6 +1,7 @@
 import "./setup";
 import {
   AppShell,
+  configureBrowserDocStorageModules,
   configureCommonModules,
   Framework,
   FrameworkRoot,
@@ -10,6 +11,7 @@ import { RouterProvider } from "react-router-dom";
 
 const framework = new Framework();
 configureCommonModules(framework);
+configureBrowserDocStorageModules(framework);
 
 const frameworkProvider = framework.provider();
 

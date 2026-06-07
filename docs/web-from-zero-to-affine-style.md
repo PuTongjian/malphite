@@ -172,7 +172,7 @@ import { WorkspaceSettingsPage } from "./pages/workspace/settings-page";
 
 先不要做复杂 `Workspace` entity。只做一个可 dispose 的 ref。
 
-修改或新增 workspace 类型：
+新增：
 
 ```text
 packages/frontend/core/src/modules/workspace/workspace-ref.ts
@@ -184,8 +184,8 @@ import type { WorkspaceMeta } from "./workspaces-service";
 
 export class WorkspaceRef {
   constructor(
-    public meta: WorkspaceMeta,
-    public provider: FrameworkProvider,
+    public readonly meta: WorkspaceMeta,
+    public readonly provider: FrameworkProvider,
   ) {}
 
   dispose() {
@@ -196,35 +196,158 @@ export class WorkspaceRef {
 
 ### 2.2 给 WorkspacesService 增加 open
 
-`WorkspacesService` 现在只管 list。下一步让它也负责打开 workspace。
+`WorkspacesService` 现在只管 list。下一步让它也负责打开 workspace，并且顺手修正当前 `get()` 里少了 `return` 的问题。
 
-建议构造函数注入 root provider 太别扭，因为 root provider 本身是运行期对象。更简单的学习版是：
+重写：
+
+```text
+packages/frontend/core/src/modules/workspace/workspaces-service.ts
+```
 
 ```ts
-open(meta, rootProvider) {
-  const provider = rootProvider.createChild(...)
-  return new WorkspaceRef(meta, provider)
+import type { FrameworkProvider } from "~/src/framework/framework";
+import { DocService } from "~/src/modules/doc/doc-service";
+import { DocStorageService } from "~/src/modules/storage/doc-storage-service";
+import { WorkbenchService } from "~/src/modules/workbench/workbench-service";
+import { LiveData } from "~/src/shared/live-data";
+import { WorkspaceRef } from "./workspace-ref";
+import { WorkspaceScope } from "./workspace-scope";
+import { WorkspaceService } from "./workspace-service";
+
+export type WorkspaceMeta = {
+  id: string;
+  name: string;
+};
+
+export class WorkspacesService {
+  workspaces$ = new LiveData<WorkspaceMeta[]>([
+    { id: "local", name: "Local Workspace" },
+    { id: "demo", name: "Demo Workspace" },
+  ]);
+
+  get(id: string) {
+    return this.workspaces$.value.find((workspace) => workspace.id === id);
+  }
+
+  open(meta: WorkspaceMeta, rootProvider: FrameworkProvider) {
+    const provider = rootProvider.createChild((framework) => {
+      framework
+        .service(WorkspaceScope, () => new WorkspaceScope(meta))
+        .service(WorkspaceService, (provider) => {
+          return new WorkspaceService(provider.get(WorkspaceScope));
+        })
+        .service(DocService, (provider) => {
+          return new DocService(
+            provider.get(WorkspaceService),
+            provider.get(DocStorageService),
+          );
+        })
+        .service(WorkbenchService, () => new WorkbenchService());
+    });
+
+    return new WorkspaceRef(meta, provider);
+  }
 }
 ```
 
-这不是最终形态，但比把注册逻辑写在 React 组件里更接近 AFFiNE。
-
-目标接口：
-
-```ts
-const ref = workspacesService.open(meta, root);
-return () => ref.dispose();
-```
+这不是 AFFiNE 的最终形态。真实 AFFiNE 会继续拆到 repository/factory/entity 层；学习版先把 child provider 的创建从 React 组件挪到 service，已经能学到生命周期边界。
 
 ### 2.3 WorkspaceRoute 只保留 open/dispose
 
-`WorkspaceScopeRoot` 的职责变成：
+现在 `WorkspaceScopeRoot` 不再知道 workspace scope 里注册了哪些 service。它只负责：
 
 ```text
 根据 URL 找 meta
   -> open workspace
   -> FrameworkRoot 使用 ref.provider
   -> unmount dispose ref
+```
+
+重写：
+
+```text
+packages/frontend/core/src/pages/workspace-route.tsx
+```
+
+```tsx
+import { type PropsWithChildren, useEffect, useMemo } from "react";
+import { Outlet, useParams } from "react-router-dom";
+import {
+  FrameworkRoot,
+  useFrameworkProvider,
+  useService,
+} from "~/src/framework/react";
+import { WorkspacesService } from "~/src/modules/workspace/workspaces-service";
+import { useLiveData } from "~/src/shared/use-live-data";
+
+function WorkspaceScopeRoot({
+  workspaceId,
+  children,
+}: PropsWithChildren<{ workspaceId: string }>) {
+  const root = useFrameworkProvider();
+  const workspacesService = useService(WorkspacesService);
+  const workspaces = useLiveData(workspacesService.workspaces$);
+  const meta = workspaces.find((workspace) => workspace.id === workspaceId);
+
+  const workspaceRef = useMemo(() => {
+    if (!meta) {
+      return null;
+    }
+
+    return workspacesService.open(meta, root);
+  }, [meta, root, workspacesService]);
+
+  useEffect(() => {
+    return () => {
+      workspaceRef?.dispose();
+    };
+  }, [workspaceRef]);
+
+  if (!meta || !workspaceRef) {
+    return <div>Workspace not found</div>;
+  }
+
+  return (
+    <FrameworkRoot framework={workspaceRef.provider}>
+      {children}
+    </FrameworkRoot>
+  );
+}
+
+export function WorkspaceRoute() {
+  const { workspaceId } = useParams();
+
+  if (!workspaceId) {
+    return <div>Workspace id is missing</div>;
+  }
+
+  return (
+    <WorkspaceScopeRoot workspaceId={workspaceId}>
+      <Outlet />
+    </WorkspaceScopeRoot>
+  );
+}
+```
+
+注意这里有一个 React 生命周期细节：`workspaceRef` 是 `useMemo` 创建的，`useEffect` cleanup 负责 dispose。`meta` 或 `root` 变化时会创建新 ref，旧 ref 会被 cleanup 释放。
+
+### 2.4 这一节完成后的文件职责
+
+```text
+workspaces-service.ts
+  全局 workspace 列表
+  根据 meta 打开 workspace runtime
+  创建 workspace child provider
+
+workspace-ref.ts
+  持有本次打开的 provider
+  负责 dispose
+
+workspace-route.tsx
+  从 URL 取 workspaceId
+  查 meta
+  调 open
+  把 child provider 放进 FrameworkRoot
 ```
 
 验收：
@@ -311,37 +434,233 @@ export class DocStorageService {
 }
 ```
 
-### 3.2 在 web app 层注册 localStorage driver
+### 3.2 明确 LocalDocStorageDriver 放在哪里
 
-`configureCommonModules` 只注册跨平台 service：
+确定方案：`LocalDocStorageDriver` 放在 core 的 storage module 里，不放到 `app/web`。
 
-```ts
-.service(DocStorageService, provider => {
-  return new DocStorageService(provider.get(DocStorageProvider));
-})
+```text
+packages/frontend/core/src/modules/storage/local-doc-storage-driver.ts
 ```
 
-`packages/frontend/app/web/src/app.tsx` 注册浏览器实现：
+原因很简单：它是 storage module 的一个浏览器实现，和 AFFiNE 的组织方式一致。AFFiNE 也是把 localStorage 实现放在 core storage module 里，再由 web app 入口调用配置函数启用它。
 
-```ts
-framework.service(DocStorageProvider, () => {
-  return new DocStorageProvider(new LocalDocStorageDriver());
-});
+AFFiNE 对应源码：
+
+```text
+/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/core/src/modules/storage/impls/storage.ts
+/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/core/src/modules/storage/index.ts
+/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/apps/web/src/app.tsx
 ```
 
-如果 `LocalDocStorageDriver` 放在 `core` 里感觉怪，先接受它。下一轮再把浏览器 driver 移到 `app/web`。不要一次移动太多。
+具体对应关系：
+
+```text
+AFFiNE:
+  impls/storage.ts
+    -> LocalStorageGlobalCache
+    -> LocalStorageGlobalState
+
+  modules/storage/index.ts
+    -> configureLocalStorageStateStorageImpls(framework)
+
+  apps/web/src/app.tsx
+    -> configureLocalStorageStateStorageImpls(framework)
+
+你的学习版:
+  modules/storage/local-doc-storage-driver.ts
+    -> LocalDocStorageDriver
+
+  modules/storage/index.ts
+    -> configureBrowserDocStorageModules(framework)
+
+  app/web/src/app.tsx
+    -> configureBrowserDocStorageModules(framework)
+```
+
+### 3.3 确定的文档代码
+
+新增 provider token：
+
+```text
+packages/frontend/core/src/modules/storage/doc-storage-provider.ts
+```
+
+```ts
+import type { DocStorageDriver } from "./doc-storage-service";
+
+export class DocStorageProvider {
+  constructor(public readonly driver: DocStorageDriver) {}
+}
+```
+
+重写 storage service：
+
+```text
+packages/frontend/core/src/modules/storage/doc-storage-service.ts
+```
+
+```ts
+import type { Doc } from "~/src/modules/doc/doc-types";
+import type { DocStorageProvider } from "./doc-storage-provider";
+
+export interface DocStorageDriver {
+  load(workspaceId: string): Doc[];
+  save(workspaceId: string, docs: Doc[]): void;
+}
+
+export class DocStorageService {
+  constructor(private readonly provider: DocStorageProvider) {}
+
+  load(workspaceId: string) {
+    return this.provider.driver.load(workspaceId);
+  }
+
+  save(workspaceId: string, docs: Doc[]) {
+    this.provider.driver.save(workspaceId, docs);
+  }
+}
+```
+
+保留并确认 localStorage driver 位置：
+
+```text
+packages/frontend/core/src/modules/storage/local-doc-storage-driver.ts
+```
+
+```ts
+import type { Doc } from "~/src/modules/doc/doc-types";
+import type { DocStorageDriver } from "./doc-storage-service";
+
+export class LocalDocStorageDriver implements DocStorageDriver {
+  load(workspaceId: string) {
+    const raw = localStorage.getItem(`workspace:${workspaceId}:docs`);
+    return raw ? (JSON.parse(raw) as Doc[]) : [];
+  }
+
+  save(workspaceId: string, docs: Doc[]) {
+    localStorage.setItem(`workspace:${workspaceId}:docs`, JSON.stringify(docs));
+  }
+}
+```
+
+新增 storage module 统一出口和浏览器实现配置函数：
+
+```text
+packages/frontend/core/src/modules/storage/index.ts
+```
+
+```ts
+import type { Framework } from "~/src/framework/framework";
+import { DocStorageProvider } from "./doc-storage-provider";
+import { DocStorageService } from "./doc-storage-service";
+import { LocalDocStorageDriver } from "./local-doc-storage-driver";
+
+export { DocStorageProvider } from "./doc-storage-provider";
+export { DocStorageService } from "./doc-storage-service";
+export { LocalDocStorageDriver } from "./local-doc-storage-driver";
+
+export function configureDocStorageModule(framework: Framework) {
+  framework.service(DocStorageService, (provider) => {
+    return new DocStorageService(provider.get(DocStorageProvider));
+  });
+}
+
+export function configureBrowserDocStorageModules(framework: Framework) {
+  framework.service(DocStorageProvider, () => {
+    return new DocStorageProvider(new LocalDocStorageDriver());
+  });
+}
+```
+
+更新 common modules。这里不再 import `DocStorageProvider` 或 `LocalDocStorageDriver`：
+
+```text
+packages/frontend/core/src/modules/index.ts
+```
+
+```ts
+import type { Framework } from "~/src/framework/framework";
+import { SiteService } from "./site/site-service";
+import { configureDocStorageModule } from "./storage";
+import { WorkspacesService } from "./workspace/workspaces-service";
+
+export function configureCommonModules(framework: Framework) {
+  framework
+    .service(SiteService, () => new SiteService())
+    .service(WorkspacesService, () => new WorkspacesService());
+
+  configureDocStorageModule(framework);
+}
+```
+
+更新 core export：
+
+```text
+packages/frontend/core/src/index.ts
+```
+
+```ts
+export { AppShell } from "./components/app-shell";
+export { Framework } from "./framework/framework";
+export {
+  FrameworkRoot,
+  useFrameworkProvider,
+  useService,
+} from "./framework/react";
+export { configureCommonModules } from "./modules";
+export { configureBrowserDocStorageModules } from "./modules/storage";
+export { router } from "./router";
+```
+
+最后在 web app 入口启用浏览器 storage 实现：
+
+```text
+packages/frontend/app/web/src/app.tsx
+```
+
+```tsx
+import "./setup";
+import {
+  AppShell,
+  configureBrowserDocStorageModules,
+  configureCommonModules,
+  Framework,
+  FrameworkRoot,
+  router,
+} from "@malphite/core";
+import { RouterProvider } from "react-router-dom";
+
+const framework = new Framework();
+configureCommonModules(framework);
+configureBrowserDocStorageModules(framework);
+
+const frameworkProvider = framework.provider();
+
+export function App() {
+  return (
+    <FrameworkRoot framework={frameworkProvider}>
+      <AppShell>
+        <RouterProvider router={router} />
+      </AppShell>
+    </FrameworkRoot>
+  );
+}
+```
 
 验收：
 
 1. `DocStorageService` 不再直接 `new LocalDocStorageDriver()`。
-2. `configureCommonModules` 不再知道 localStorage。
-3. 换 driver 时只改 `app/web/src/app.tsx`。
+2. `configureCommonModules` 不再知道 `localStorage`。
+3. `LocalDocStorageDriver` 的确定位置是 `packages/frontend/core/src/modules/storage/local-doc-storage-driver.ts`。
+4. web app 通过 `configureBrowserDocStorageModules(framework)` 启用 localStorage driver。
+5. 之后换成 worker driver 时，优先改 `configureBrowserDocStorageModules`，页面和 `DocStorageService` 不动。
 
 对照 AFFiNE：
 
 ```text
 /Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/apps/web/src/app.tsx
-/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/core/src/modules/storage
+/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/core/src/modules/storage/index.ts
+/Users/malphite/Desktop/Archive/AFFiNE/packages/frontend/core/src/modules/storage/impls/storage.ts
 ```
 
 理解重点：
@@ -364,23 +683,66 @@ web app:
 
 ### 4.1 修改 storage driver
 
+这一步要同时改 `DocStorageDriver`、`DocStorageService` 和
+`LocalDocStorageDriver`。重点不是让 `localStorage` 真的变成非阻塞，而是先把
+storage 边界改成 Promise 形状，这样第 5 部分才能无缝换成 worker driver。
+
+更新 storage service：
+
+```text
+packages/frontend/core/src/modules/storage/doc-storage-service.ts
+```
+
 ```ts
+import type { Doc } from "~/src/modules/doc/doc-types";
+import type { DocStorageProvider } from "./doc-storage-provider";
+
 export interface DocStorageDriver {
   load(workspaceId: string): Promise<Doc[]>;
   save(workspaceId: string, docs: Doc[]): Promise<void>;
 }
+
+export class DocStorageService {
+  constructor(private readonly provider: DocStorageProvider) {}
+
+  load(workspaceId: string): Promise<Doc[]> {
+    return this.provider.driver.load(workspaceId);
+  }
+
+  save(workspaceId: string, docs: Doc[]): Promise<void> {
+    return this.provider.driver.save(workspaceId, docs);
+  }
+}
 ```
 
-`LocalDocStorageDriver` 也返回 Promise：
+注意 `save()` 必须 `return` driver 的 Promise。否则 4.2 里的
+`await this.storage.save(...)` 会立刻结束，保存失败也不会进入调用方的
+`catch`。
+
+`LocalDocStorageDriver` 保持使用 `localStorage`，但方法返回 Promise：
+
+这里的 `async` 是接口适配，不是性能优化。`async load()` 里直接
+`return []` 会被 JavaScript 包装成 `Promise.resolve([])`；`async save()`
+没有显式 `return`，也会返回 `Promise<void>`。`localStorage` 的读写仍然是同步
+执行的，只是同步异常会变成 rejected Promise，方便 4.2 的 `error$` 统一处理。
+
+```text
+packages/frontend/core/src/modules/storage/local-doc-storage-driver.ts
+```
 
 ```ts
-async load(workspaceId: string) {
-  const raw = localStorage.getItem(`workspace:${workspaceId}:docs`);
-  return raw ? (JSON.parse(raw) as Doc[]) : [];
-}
+import type { Doc } from "~/src/modules/doc/doc-types";
+import type { DocStorageDriver } from "./doc-storage-service";
 
-async save(workspaceId: string, docs: Doc[]) {
-  localStorage.setItem(`workspace:${workspaceId}:docs`, JSON.stringify(docs));
+export class LocalDocStorageDriver implements DocStorageDriver {
+  async load(workspaceId: string): Promise<Doc[]> {
+    const raw = localStorage.getItem(`workspace:${workspaceId}:docs`);
+    return raw ? (JSON.parse(raw) as Doc[]) : [];
+  }
+
+  async save(workspaceId: string, docs: Doc[]): Promise<void> {
+    localStorage.setItem(`workspace:${workspaceId}:docs`, JSON.stringify(docs));
+  }
 }
 ```
 

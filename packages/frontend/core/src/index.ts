@@ -6,4 +6,5 @@ export {
   useService,
 } from "./framework/react";
 export { configureCommonModules } from "./modules";
+export { configureBrowserDocStorageModules } from "./modules/storage";
 export { router } from "./router";
