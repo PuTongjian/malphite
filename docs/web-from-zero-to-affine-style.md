@@ -710,7 +710,7 @@ export class DocStorageService {
   }
 
   save(workspaceId: string, docs: Doc[]): Promise<void> {
-    return this.provider.driver.save(workspaceId, docs);
+      return this.provider.driver.save(workspaceId, docs);
   }
 }
 ```
@@ -748,65 +748,238 @@ export class LocalDocStorageDriver implements DocStorageDriver {
 
 ### 4.2 DocService 增加 ready/error 状态
 
-不要在构造函数里 `await`。构造函数只创建状态，然后调用 `load()`。
+这一节的核心落点只有一个文件：
 
-建议状态：
-
-```ts
-docs$ = new LiveData<Doc[]>([]);
-ready$ = new LiveData(false);
-error$ = new LiveData<Error | null>(null);
+```text
+packages/frontend/core/src/modules/doc/doc-service.ts
 ```
 
-初始化流程：
+它接在 4.1 后面。4.1 已经把 `DocStorageService.load/save` 改成
+`Promise` 接口；4.2 要做的是让 `DocService` 消化这个异步边界：
+
+```text
+WorkspacesService.open(...)
+  -> workspace child provider 创建 DocService
+  -> DocService 构造函数只创建 LiveData 状态
+  -> constructor 里调用 void this.load()
+  -> load() await storage.load(workspaceId)
+  -> 成功：写入 docs$，ready$ = true，error$ = null
+  -> 失败：写入 error$，页面显示错误
+```
+
+相关上下文：
+
+```text
+packages/frontend/core/src/modules/workspace/workspaces-service.ts
+  open(...) 里注册 DocService，所以每个 workspace 都有自己的 DocService 实例。
+
+packages/frontend/core/src/modules/storage/doc-storage-service.ts
+  4.1 已把 load/save 改成 Promise，且 save() 必须 return driver.save(...)。
+
+packages/frontend/core/src/pages/workspace/all-docs-page.tsx
+packages/frontend/core/src/pages/workspace/doc-page.tsx
+  4.3 会读取 ready$/error$/docs$。
+```
+
+不要在构造函数里 `await`。构造函数不能是 `async`，也不应该阻塞 provider 创建。
+它只负责把状态初始化好，然后启动一次异步加载。
+
+完整实现：
+
+```text
+packages/frontend/core/src/modules/doc/doc-service.ts
+```
 
 ```ts
-constructor(...) {
-  void this.load();
+import type { DocStorageService } from "~/src/modules/storage/doc-storage-service";
+import type { WorkspaceService } from "~/src/modules/workspace/workspace-service";
+import { LiveData } from "~/src/shared/live-data";
+import type { Doc } from "./doc-types";
+
+function createWelcomeDoc(): Doc {
+  return {
+    id: "welcome",
+    title: "Welcome",
+    content: "Hello AFFiNE style",
+  };
 }
 
-private async load() {
-  try {
-    const stored = await this.storage.load(this.workspaceService.id);
-    this.docs$.set(stored.length ? stored : [welcomeDoc]);
-    this.ready$.set(true);
-  } catch (error) {
-    this.error$.set(error instanceof Error ? error : new Error(String(error)));
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+export class DocService {
+  docs$ = new LiveData<Doc[]>([]);
+  ready$ = new LiveData(false);
+  error$ = new LiveData<Error | null>(null);
+
+  constructor(
+    private readonly workspaceService: WorkspaceService,
+    private readonly storage: DocStorageService,
+  ) {
+    void this.load();
+  }
+
+  create(title: string) {
+    const doc: Doc = {
+      id: crypto.randomUUID(),
+      title,
+      content: "",
+    };
+
+    void this.save([...this.docs$.value, doc]);
+
+    return doc;
+  }
+
+  rename(id: string, title: string) {
+    const nextDocs = this.docs$.value.map((doc) => {
+      return doc.id === id ? { ...doc, title } : doc;
+    });
+
+    void this.save(nextDocs);
+  }
+
+  get(id: string) {
+    return this.docs$.value.find((doc) => doc.id === id);
+  }
+
+  private async load() {
+    this.error$.set(null);
+
+    try {
+      const stored = await this.storage.load(this.workspaceService.id);
+
+      this.docs$.set(stored.length > 0 ? stored : [createWelcomeDoc()]);
+      this.ready$.set(true);
+    } catch (error) {
+      this.error$.set(toError(error));
+    }
+  }
+
+  private async save(docs: Doc[]) {
+    this.docs$.set(docs);
+    this.error$.set(null);
+
+    try {
+      await this.storage.save(this.workspaceService.id, docs);
+    } catch (error) {
+      this.error$.set(toError(error));
+    }
   }
 }
 ```
 
-写入流程：
+这里的 `void this.save(...)` 是学习版的取舍：UI 先乐观更新，保存失败时只写入
+`error$`，不做回滚、重试和 dirty state。注意 `save()` 内部自己 `catch`，
+所以这不是简单忽略错误，也不会产生未处理的 rejected Promise。真正产品要继续补：
 
-```ts
-private async save(docs: Doc[]) {
-  this.docs$.set(docs);
-  await this.storage.save(this.workspaceService.id, docs);
-}
+```text
+保存中状态
+保存失败后的重试
+本地乐观更新回滚
+未保存 dirty state
 ```
-
-为了保持 UI 简单，`create()` 和 `rename()` 可以先 fire-and-forget：
-
-```ts
-void this.save(nextDocs);
-```
-
-但要写清楚这是学习版 tradeoff。真正产品要处理保存失败、重试、dirty state。
 
 ### 4.3 页面处理 loading/error
 
-`AllDocsPage` 和 `DocPage` 读取：
+4.2 之后，页面不能只订阅 `docs$`。因为 `docs$` 初始值是空数组，真正的数据
+要等 `load()` 完成后才知道。页面要同时读：
 
-```ts
-const ready = useLiveData(docService.ready$);
-const error = useLiveData(docService.error$);
+```text
+docs$   -> 文档列表
+ready$  -> 首次加载是否完成
+error$  -> load/save 是否失败
 ```
 
-最小 UI：
+先处理 error，再处理 loading，最后渲染正常内容。
+
+完整实现：
+
+```text
+packages/frontend/core/src/pages/workspace/all-docs-page.tsx
+```
 
 ```tsx
-if (error) return <div>{error.message}</div>;
-if (!ready) return <div>Loading docs...</div>;
+import { Link } from "react-router-dom";
+import { useService } from "~/src/framework/react";
+import { DocService } from "~/src/modules/doc/doc-service";
+import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
+import { useLiveData } from "~/src/shared/use-live-data";
+
+export function AllDocsPage() {
+  const workspace = useService(WorkspaceService);
+  const docService = useService(DocService);
+  const docs = useLiveData(docService.docs$);
+  const ready = useLiveData(docService.ready$);
+  const error = useLiveData(docService.error$);
+
+  if (error) {
+    return <div>{error.message}</div>;
+  }
+
+  if (!ready) {
+    return <div>Loading docs...</div>;
+  }
+
+  return (
+    <section>
+      <h1>{workspace.name}</h1>
+      <button type="button" onClick={() => docService.create("Untitled")}>
+        New Doc
+      </button>
+      <ul>
+        {docs.map((doc) => (
+          <li key={doc.id}>
+            <Link to={`/workspace/${workspace.id}/${doc.id}`}>{doc.title}</Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+```
+
+```text
+packages/frontend/core/src/pages/workspace/doc-page.tsx
+```
+
+```tsx
+import { useParams } from "react-router-dom";
+import { useService } from "~/src/framework/react";
+import { DocService } from "~/src/modules/doc/doc-service";
+import { useLiveData } from "~/src/shared/use-live-data";
+
+export function DocPage() {
+  const { docId } = useParams();
+  const docService = useService(DocService);
+  const docs = useLiveData(docService.docs$);
+  const ready = useLiveData(docService.ready$);
+  const error = useLiveData(docService.error$);
+  const doc = docs.find((item) => item.id === docId);
+
+  if (error) {
+    return <div>{error.message}</div>;
+  }
+
+  if (!ready) {
+    return <div>Loading docs...</div>;
+  }
+
+  if (!doc) {
+    return <div>Doc not found</div>;
+  }
+
+  return (
+    <article>
+      <input
+        value={doc.title}
+        onChange={(event) => docService.rename(doc.id, event.target.value)}
+      />
+      <p>{doc.content || "Empty doc"}</p>
+    </article>
+  );
+}
 ```
 
 验收：

@@ -9,11 +9,11 @@ export interface DocStorageDriver {
 export class DocStorageService {
   constructor(private provider: DocStorageProvider) {}
 
-  load(workspaceId: string) {
+  load(workspaceId: string): Promise<Doc[]> {
     return this.provider.driver.load(workspaceId);
   }
 
-  save(workspaceId: string, docs: Doc[]) {
-    this.provider.driver.save(workspaceId, docs);
+  save(workspaceId: string, docs: Doc[]): Promise<void> {
+    return this.provider.driver.save(workspaceId, docs);
   }
 }

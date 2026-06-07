@@ -3,19 +3,28 @@ import type { WorkspaceService } from "~/src/modules/workspace/workspace-service
 import { LiveData } from "~/src/shared/live-data";
 import type { Doc } from "./doc-types";
 
+function createWelcomeDoc(): Doc {
+  return {
+    id: "welcome",
+    title: "Welcome",
+    content: "Hello AFFiNE style",
+  };
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
 export class DocService {
-  docs$: LiveData<Doc[]>;
+  docs$ = new LiveData<Doc[]>([]);
+  error$ = new LiveData<Error | null>(null);
+  ready$ = new LiveData(false);
 
   constructor(
     private workspaceService: WorkspaceService,
     private storage: DocStorageService,
   ) {
-    const stored = this.storage.load(this.workspaceService.id);
-    this.docs$ = new LiveData(
-      stored.length > 0
-        ? stored
-        : [{ id: "welcome", title: "Welcome", content: "Hello AFFiNE style" }],
-    );
+    void this.load();
   }
 
   create(title: string) {
@@ -25,25 +34,42 @@ export class DocService {
       content: "",
     };
 
-    this.save([...this.docs$.value, doc]);
+    void this.save([...this.docs$.value, doc]);
 
     return doc;
   }
 
   rename(id: string, title: string) {
-    this.save(
-      this.docs$.value.map((doc) => {
-        return doc.id === id ? { ...doc, title } : doc;
-      }),
-    );
+    const nextDocs = this.docs$.value.map((doc) => {
+      return doc.id === id ? { ...doc, title } : doc;
+    });
+
+    void this.save(nextDocs);
   }
 
   get(id: string) {
     return this.docs$.value.find((doc) => doc.id === id);
   }
 
-  private save(docs: Doc[]) {
+  private async load() {
+    this.error$.set(null);
+
+    try {
+      const stored = await this.storage.load(this.workspaceService.id);
+      this.docs$.set(stored.length > 0 ? stored : [createWelcomeDoc()]);
+      this.ready$.set(true);
+    } catch (error) {
+      this.error$.set(toError(error));
+    }
+  }
+
+  private async save(docs: Doc[]) {
     this.docs$.set(docs);
-    this.storage.save(this.workspaceService.id, docs);
+    this.error$.set(null);
+    try {
+      await this.storage.save(this.workspaceService.id, docs);
+    } catch (error) {
+      this.error$.set(toError(error));
+    }
   }
 }
