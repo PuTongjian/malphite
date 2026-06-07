@@ -7,7 +7,17 @@ export function DocPage() {
   const { docId } = useParams();
   const docService = useService(DocService);
   const docs = useLiveData(docService.docs$);
+  const ready = useLiveData(docService.ready$);
+  const error = useLiveData(docService.error$);
   const doc = docs.find((item) => item.id === docId);
+
+  if (error) {
+    return <div>{error.message}</div>;
+  }
+
+  if (!ready) {
+    return <div>Loading docs...</div>;
+  }
 
   if (!doc) {
     return <div>Doc not found</div>;

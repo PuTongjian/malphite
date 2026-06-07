@@ -1053,15 +1053,17 @@ export type WorkerDocStorageOps = {
 
 export type WorkerDocStorageMethod = keyof WorkerDocStorageOps;
 
+export type WorkerRequestShape<M extends WorkerDocStorageMethod> = {
+  id: string;
+  method: M;
+  payload: WorkerDocStorageOps[M]["input"];
+};
+
 export type WorkerRequest<
   M extends WorkerDocStorageMethod = WorkerDocStorageMethod,
-> = M extends WorkerDocStorageMethod
-  ? {
-      id: string;
-      method: M;
-      payload: WorkerDocStorageOps[M]["input"];
-    }
-  : never;
+> = {
+  [K in M]: WorkerRequestShape<K>;
+}[M];
 
 export type WorkerResponse<
   M extends WorkerDocStorageMethod = WorkerDocStorageMethod,
@@ -1092,7 +1094,7 @@ import type { DocStorageDriver } from "./doc-storage-service";
 import type {
   WorkerDocStorageMethod,
   WorkerDocStorageOps,
-  WorkerRequest,
+  WorkerRequestShape,
   WorkerResponse,
 } from "./worker-doc-storage-rpc";
 
@@ -1129,7 +1131,9 @@ export class WorkerDocStorageDriver implements DocStorageDriver {
       };
 
       this.worker.addEventListener("message", onMessage);
-      this.worker.postMessage({ id, method, payload } satisfies WorkerRequest<M>);
+      this.worker.postMessage(
+        { id, method, payload } satisfies WorkerRequestShape<M>,
+      );
     });
   }
 }

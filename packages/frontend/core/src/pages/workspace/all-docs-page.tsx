@@ -8,6 +8,16 @@ export function AllDocsPage() {
   const workspace = useService(WorkspaceService);
   const docService = useService(DocService);
   const docs = useLiveData(docService.docs$);
+  const ready = useLiveData(docService.ready$);
+  const error = useLiveData(docService.error$);
+
+  if (error) {
+    return <div>{error.message}</div>;
+  }
+
+  if (!ready) {
+    return <div>Loading docs...</div>;
+  }
 
   return (
     <section>
