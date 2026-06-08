@@ -47,7 +47,6 @@ export class WorkbenchService {
   activeViewId$ = new LiveData(MAIN_VIEW.id);
 
   open(path: string) {
-    console.log("Opening view with path:", path);
     const normalizedPath = normalizePath(path);
     const existing = this.views$.value.find((view) => {
       return view.path === normalizedPath;

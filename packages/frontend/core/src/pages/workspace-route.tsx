@@ -1,4 +1,4 @@
-import { type PropsWithChildren, useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   FrameworkRoot,
@@ -6,33 +6,38 @@ import {
   useService,
 } from "~/src/framework/react";
 import { WorkbenchRoot } from "~/src/modules/workbench/workbench-root";
+import type { WorkspaceRef } from "~/src/modules/workspace/workspace-ref";
 import { WorkspacesService } from "~/src/modules/workspace/workspaces-service";
 import { useLiveData } from "~/src/shared/use-live-data";
 
-function WorkspaceScopeRoot({
-  workspaceId,
-}: PropsWithChildren<{ workspaceId: string }>) {
+function WorkspaceScopeRoot({ workspaceId }: { workspaceId: string }) {
   const root = useFrameworkProvider();
   const workspacesService = useService(WorkspacesService);
   const workspaces = useLiveData(workspacesService.workspaces$);
   const meta = workspaces.find((workspace) => workspace.id === workspaceId);
-
-  const workspaceRef = useMemo(() => {
-    if (!meta) {
-      return null;
-    }
-
-    return workspacesService.open(meta, root);
-  }, [meta, root, workspacesService]);
+  const [workspaceRef, setWorkspaceRef] = useState<WorkspaceRef | null>(null);
 
   useEffect(() => {
-    return () => {
-      workspaceRef?.dispose();
-    };
-  }, [workspaceRef]);
+    if (!meta) {
+      setWorkspaceRef(null);
+      return;
+    }
 
-  if (!meta || !workspaceRef) {
+    const ref = workspacesService.open(meta, root);
+    setWorkspaceRef(ref);
+
+    return () => {
+      ref.dispose();
+      setWorkspaceRef(null);
+    };
+  }, [meta, root, workspacesService]);
+
+  if (!meta) {
     return <div>Workspace not found</div>;
+  }
+
+  if (!workspaceRef) {
+    return <div>Loading workspace...</div>;
   }
 
   return (

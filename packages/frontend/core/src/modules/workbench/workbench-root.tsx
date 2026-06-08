@@ -57,7 +57,6 @@ export function WorkbenchRoot() {
 }
 
 function WorkbenchView({ path }: { path: string }) {
-  console.log("Rendering WorkbenchView with path:", path);
   if (path === "/all") {
     return <AllDocsPage />;
   }
