@@ -1,11 +1,10 @@
 import type { FrameworkProvider } from "~/src/framework/framework";
-import { DocService } from "~/src/modules/doc/doc-service";
-import { DocStorageService } from "~/src/modules/storage/doc-storage-service";
-import { WorkbenchService } from "~/src/modules/workbench/workbench-service";
+import { configureDocModule } from "~/src/modules/doc";
+import { configureWorkbenchModule } from "~/src/modules/workbench";
 import { LiveData } from "~/src/shared/live-data";
+import { configureWorkspaceScopeModule } from "./index";
 import { WorkspaceRef } from "./workspace-ref";
 import { WorkspaceScope } from "./workspace-scope";
-import { WorkspaceService } from "./workspace-service";
 
 export type WorkspaceMeta = {
   id: string;
@@ -26,18 +25,11 @@ export class WorkspacesService {
 
   open(meta: WorkspaceMeta, rootProvider: FrameworkProvider) {
     const provider = rootProvider.createChild((framework) => {
-      framework
-        .service(WorkspaceScope, () => new WorkspaceScope(meta))
-        .service(WorkspaceService, (provider) => {
-          return new WorkspaceService(provider.get(WorkspaceScope));
-        })
-        .service(DocService, (provider) => {
-          return new DocService(
-            provider.get(WorkspaceService),
-            provider.get(DocStorageService),
-          );
-        })
-        .service(WorkbenchService, () => new WorkbenchService());
+      framework.service(WorkspaceScope, () => new WorkspaceScope(meta));
+
+      configureWorkspaceScopeModule(framework);
+      configureDocModule(framework);
+      configureWorkbenchModule(framework);
     });
 
     return new WorkspaceRef(meta, provider);

@@ -1,5 +1,10 @@
 import { LiveData } from "~/src/shared/live-data";
 
+export type ViewProps = {
+  initialPath: string;
+  title: string;
+};
+
 export function normalizePath(path: string) {
   if (path === "" || path === "/") {
     return "/all";
@@ -22,13 +27,14 @@ export function getViewTitle(path: string) {
 
 export class View {
   path$ = new LiveData("");
+  readonly title: string;
 
   constructor(
     public readonly id: string,
-    initialPath: string,
-    public readonly title: string,
+    props: ViewProps,
   ) {
-    this.path$.set(normalizePath(initialPath));
+    this.path$.set(normalizePath(props.initialPath));
+    this.title = props.title;
   }
 
   get path() {
@@ -38,16 +44,13 @@ export class View {
   navigate(path: string) {
     this.path$.set(normalizePath(path));
   }
+
+  dispose() {
+    // 后续 D 阶段会在这里清理 history/router 订阅
+  }
 }
 
-export function createView(path: string) {
-  const normalizedPath = normalizePath(path);
-
-  return new View(
-    crypto.randomUUID(),
-    normalizedPath,
-    getViewTitle(normalizedPath),
-  );
-}
-
-export const MAIN_VIEW = new View("main", "/all", "All Docs");
+export const MAIN_VIEW = new View("main", {
+  initialPath: "/all",
+  title: "All Docs",
+});

@@ -1,6 +1,6 @@
-import type { DocStorageService } from "~/src/modules/storage/doc-storage-service";
 import type { WorkspaceService } from "~/src/modules/workspace/workspace-service";
 import { LiveData } from "~/src/shared/live-data";
+import type { DocStore } from "./doc-store";
 import type { Doc } from "./doc-types";
 
 function createWelcomeDoc(): Doc {
@@ -22,7 +22,7 @@ export class DocService {
 
   constructor(
     private workspaceService: WorkspaceService,
-    private storage: DocStorageService,
+    private storage: DocStore,
   ) {
     void this.load();
   }

@@ -1,9 +1,12 @@
+import type { FrameworkProvider } from "~/src/framework/framework";
 import { LiveData } from "~/src/shared/live-data";
-import { createView, MAIN_VIEW, normalizePath, type View } from "./view";
+import { getViewTitle, MAIN_VIEW, normalizePath, View } from "./view";
 
 export class WorkbenchService {
   views$ = new LiveData<View[]>([MAIN_VIEW]);
   activeViewId$ = new LiveData(MAIN_VIEW.id);
+
+  constructor(private provider: FrameworkProvider) {}
 
   get activeView() {
     return (
@@ -24,7 +27,10 @@ export class WorkbenchService {
       return existing;
     }
 
-    const view = createView(normalizedPath);
+    const view = this.provider.createEntity(View, {
+      initialPath: normalizedPath,
+      title: getViewTitle(normalizedPath),
+    });
 
     this.views$.set([...this.views$.value, view]);
     this.activeViewId$.set(view.id);
@@ -45,23 +51,16 @@ export class WorkbenchService {
   close(id: string) {
     const views = this.views$.value;
 
-    if (views.length <= 1) {
-      return;
-    }
+    if (views.length <= 1) return;
 
-    const closedIndex = views.findIndex((view) => {
-      return view.id === id;
-    });
+    const closedIndex = views.findIndex((view) => view.id === id);
+    if (closedIndex === -1) return;
 
-    if (closedIndex === -1) {
-      return;
-    }
-
-    const nextViews = views.filter((view) => {
-      return view.id !== id;
-    });
-
+    const nextViews = views.filter((view) => view.id !== id);
     this.views$.set(nextViews);
+
+    const closeView = views[closedIndex];
+    closeView.dispose();
 
     if (this.activeViewId$.value === id) {
       const nextActiveView =
