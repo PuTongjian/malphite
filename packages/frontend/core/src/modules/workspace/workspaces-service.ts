@@ -20,7 +20,7 @@ export class WorkspacesService {
 
   get(id: string) {
     return this.workspaces$.value.find((workspace) => {
-      workspace.id === id;
+      return workspace.id === id;
     });
   }
 
