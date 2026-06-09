@@ -1,53 +1,20 @@
 import { LiveData } from "~/src/shared/live-data";
-
-export type View = {
-  id: string;
-  path: string;
-  title: string;
-};
-
-const MAIN_VIEW: View = {
-  id: "main",
-  path: "/all",
-  title: "All Docs",
-};
-
-function normalizePath(path: string) {
-  if (path === "" || path === "/") {
-    return "/all";
-  }
-
-  return path.startsWith("/") ? path : `/${path}`;
-}
-
-function getViewTitle(path: string) {
-  if (path === "/all") {
-    return "All Docs";
-  }
-
-  if (path === "/settings") {
-    return "Settings";
-  }
-
-  return path.slice(1);
-}
-
-function createView(path: string): View {
-  const normalizedPath = normalizePath(path);
-
-  return {
-    id: crypto.randomUUID(),
-    path: normalizedPath,
-    title: getViewTitle(normalizedPath),
-  };
-}
+import { createView, MAIN_VIEW, normalizePath, type View } from "./view";
 
 export class WorkbenchService {
   views$ = new LiveData<View[]>([MAIN_VIEW]);
   activeViewId$ = new LiveData(MAIN_VIEW.id);
 
+  get activeView() {
+    return (
+      this.views$.value.find((view) => view.id === this.activeViewId$.value) ??
+      this.views$.value[0]
+    );
+  }
+
   open(path: string) {
     const normalizedPath = normalizePath(path);
+
     const existing = this.views$.value.find((view) => {
       return view.path === normalizedPath;
     });

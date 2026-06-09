@@ -1,11 +1,12 @@
 import { useService } from "~/src/framework/react";
-import { AllDocsPage } from "~/src/pages/workspace/all-docs-page";
-import { DocPageContent } from "~/src/pages/workspace/doc-page";
-import { WorkspaceSettingsPage } from "~/src/pages/workspace/settings-page";
 import { useLiveData } from "~/src/shared/use-live-data";
+import { useBindWorkbenchToBrowserRouter } from "./use-bind-workbench-to-browser-router";
+import { ViewRoot } from "./view-root";
 import { WorkbenchService } from "./workbench-service";
 
 export function WorkbenchRoot() {
+  useBindWorkbenchToBrowserRouter();
+
   const workbench = useService(WorkbenchService);
   const views = useLiveData(workbench.views$);
   const activeViewId = useLiveData(workbench.activeViewId$);
@@ -51,19 +52,7 @@ export function WorkbenchRoot() {
         </nav>
       </header>
 
-      <WorkbenchView path={activeView.path} />
+      <ViewRoot view={activeView} />
     </section>
   );
-}
-
-function WorkbenchView({ path }: { path: string }) {
-  if (path === "/all") {
-    return <AllDocsPage />;
-  }
-
-  if (path === "/settings") {
-    return <WorkspaceSettingsPage />;
-  }
-
-  return <DocPageContent docId={path.slice(1)} />;
 }

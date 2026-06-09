@@ -2548,7 +2548,7 @@ function WorkbenchView({ path }: { path: string }) {
 
 ```text
 1. 把 View 升级成 class，path 变成 path$
-2. 给每个 view 建 child provider + ViewScope
+2. 给每个 view 建 child provider + ViewScope（通过 useViewScope hook）
 3. 把 page routing 从 WorkbenchRoot 抽到 ViewRoot
 ```
 
@@ -2739,27 +2739,74 @@ ViewScope         -> 当前 view 是谁
 
 以后某个 service 只应该在“当前 view”里存在，就注册到 view child provider，而不是 workspace provider。例如 scroll position、sidebar 折叠状态、view 内临时 UI state。
 
-### 9.4 新增 ViewRoot
+### 9.4 新增 useViewScope 和 ViewRoot
 
-新增：
+不要把 `createChild` 放在 `useMemo` 里、再用 `useEffect` dispose。这和第 2 步
+`useWorkspaceScope` 要避开的反模式一样，在 StrictMode 下会出问题：
+
+```text
+useMemo 在 render 阶段创建 viewProvider
+useEffect cleanup 在 StrictMode 下 dispose 它
+StrictMode 重跑 effect 时，useMemo 仍返回同一个已 dispose 的 provider
+```
+
+正确做法：把 **创建和销毁都放在同一个 effect 里**，用 `useState` 持有
+provider。模式和 `useWorkspaceScope` 完全一致。
+
+先新增 hook：
+
+```text
+packages/frontend/core/src/modules/workbench/use-view-scope.ts
+```
+
+```tsx
+import { useEffect, useState } from "react";
+import type { FrameworkProvider } from "~/src/framework/framework";
+import { useFrameworkProvider } from "~/src/framework/react";
+import { ViewScope } from "./view-scope";
+import type { View } from "./view";
+
+export function useViewScope(view: View) {
+  const workspaceProvider = useFrameworkProvider();
+  const [viewProvider, setViewProvider] = useState<FrameworkProvider | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const provider = workspaceProvider.createChild((framework) => {
+      framework.service(ViewScope, () => new ViewScope(view));
+    });
+    setViewProvider(provider);
+
+    return () => {
+      provider.dispose();
+      setViewProvider(null);
+    };
+  }, [workspaceProvider, view]);
+
+  return viewProvider;
+}
+```
+
+StrictMode 下 effect 会 `create → dispose → create`，每次都拿到全新的
+provider，不会复用已 dispose 的对象。
+
+再新增 ViewRoot：
 
 ```text
 packages/frontend/core/src/modules/workbench/view-root.tsx
 ```
 
-学习版先不用 `UNSAFE_LocationContext`，也不接 memory router。每个 view 用自己的 `path$` + 条件渲染，但包一层 child provider：
+学习版先不用 `UNSAFE_LocationContext`，也不接 memory router。每个 view 用自己的
+`path$` + 条件渲染，但包一层 child provider：
 
 ```tsx
-import { useEffect, useMemo } from "react";
-import {
-  FrameworkRoot,
-  useFrameworkProvider,
-} from "~/src/framework/react";
+import { FrameworkRoot } from "~/src/framework/react";
 import { AllDocsPage } from "~/src/pages/workspace/all-docs-page";
 import { DocPageContent } from "~/src/pages/workspace/doc-page";
 import { WorkspaceSettingsPage } from "~/src/pages/workspace/settings-page";
 import { useLiveData } from "~/src/shared/use-live-data";
-import { ViewScope } from "./view-scope";
+import { useViewScope } from "./use-view-scope";
 import type { View } from "./view";
 
 function ViewContent({ path }: { path: string }) {
@@ -2775,20 +2822,12 @@ function ViewContent({ path }: { path: string }) {
 }
 
 export function ViewRoot({ view }: { view: View }) {
-  const workspaceProvider = useFrameworkProvider();
+  const viewProvider = useViewScope(view);
   const path = useLiveData(view.path$);
 
-  const viewProvider = useMemo(() => {
-    return workspaceProvider.createChild((framework) => {
-      framework.service(ViewScope, () => new ViewScope(view));
-    });
-  }, [workspaceProvider, view]);
-
-  useEffect(() => {
-    return () => {
-      viewProvider.dispose();
-    };
-  }, [viewProvider]);
+  if (!viewProvider) {
+    return null;
+  }
 
   return (
     <FrameworkRoot framework={viewProvider}>
@@ -2798,7 +2837,12 @@ export function ViewRoot({ view }: { view: View }) {
 }
 ```
 
-这里刻意保留 `if/else` 路由。等你能解释清楚下面这条链，再读 AFFiNE 用 memory router 的版本：
+`viewProvider` 为 `null` 时返回 `null`，是因为 effect 还没跑完。这和
+`useWorkspaceScope` 返回 `null` 再显示 "Loading workspace..." 是同一思路；学习版
+可以先省略 loading UI。
+
+这里刻意保留 `if/else` 路由。等你能解释清楚下面这条链，再读 AFFiNE 用 memory
+router 的版本：
 
 ```text
 view.path$
@@ -2808,34 +2852,238 @@ view.path$
   -> 需要 view 级 state 时读 ViewScope
 ```
 
+生命周期对照：
+
+```text
+useWorkspaceScope   -> workspace child provider
+useViewScope        -> view child provider（嵌在 workspace scope 内）
+
+WorkspaceRoute unmount
+  -> dispose workspace provider
+  -> 其下所有 view provider 随 React 树卸载而 dispose
+
+关闭某个 tab
+  -> 对应 ViewRoot unmount
+  -> useViewScope cleanup dispose 该 tab 的 view provider
+  -> workspace scope 不受影响
+```
+
 ### 9.5 更新 WorkbenchRoot 和 browser adapter
 
-`WorkbenchRoot` 不再直接渲染 `WorkbenchView`，改成渲染 `ViewRoot`：
+第 9 步完成后，`WorkbenchRoot` 的职责进一步收缩：
+
+```text
+before（第 7–8 步）:
+  tab UI + WorkbenchView（if/else 路由）+ page import
+
+after（第 9 步）:
+  tab UI + ViewRoot
+  不再 import AllDocsPage / DocPageContent / WorkspaceSettingsPage
+```
+
+#### 9.5.1 重写 WorkbenchRoot
+
+修改：
+
+```text
+packages/frontend/core/src/modules/workbench/workbench-root.tsx
+```
+
+完整实现：
 
 ```tsx
+import { useService } from "~/src/framework/react";
+import { useLiveData } from "~/src/shared/use-live-data";
+import { useBindWorkbenchToBrowserRouter } from "./use-bind-workbench-to-browser-router";
 import { ViewRoot } from "./view-root";
+import { WorkbenchService } from "./workbench-service";
 
-// header 部分不变 ...
+export function WorkbenchRoot() {
+  useBindWorkbenchToBrowserRouter();
 
-<ViewRoot view={activeView} />
+  const workbench = useService(WorkbenchService);
+  const views = useLiveData(workbench.views$);
+  const activeViewId = useLiveData(workbench.activeViewId$);
+  const activeView = workbench.activeView;
+
+  if (!activeView) {
+    return null;
+  }
+
+  return (
+    <section>
+      <header>
+        <div role="tablist" aria-label="Workbench views">
+          {views.map((view) => (
+            <span key={view.id}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view.id === activeView.id}
+                onClick={() => workbench.activate(view.id)}
+              >
+                {view.title}
+              </button>
+              <button
+                type="button"
+                aria-label={`Close ${view.title}`}
+                disabled={views.length <= 1}
+                onClick={() => workbench.close(view.id)}
+              >
+                Close
+              </button>
+            </span>
+          ))}
+        </div>
+
+        <nav aria-label="Workspace tools">
+          <button type="button" onClick={() => workbench.open("/all")}>
+            All Docs
+          </button>
+          <button type="button" onClick={() => workbench.open("/settings")}>
+            Settings
+          </button>
+        </nav>
+      </header>
+
+      <ViewRoot view={activeView} />
+    </section>
+  );
+}
 ```
 
-browser adapter 里有一处要跟着改：workbench -> browser 的 effect 依赖 `activeView?.path`。`View` 升级成 class 后 `path` 仍是 getter，**但 adapter 应该改订阅 `view.path$`**，否则只在 tab 切换时 URL 会变，view 内 `navigate()` 不会同步到 browser。
+和上一版相比，变化只有两处：
 
-修改 `use-bind-workbench-to-browser-router.ts`：
+```text
+1. 删掉 WorkbenchView 和三个 page import
+2. activeView 改用 workbench.activeView getter，不再 inline find
+```
+
+#### 9.5.2 更新 browser adapter 订阅 path$
+
+`View` 升级成 class 后，`path` 存在 `path$` 里。第 8 步 adapter 用
+`activeView.path`（getter）做 workbench -> browser 同步，在 **tab 切换** 时够用；
+但如果以后 view 内调用 `view.navigate()`，getter 不会触发 React 重渲染，URL
+就不会跟着变。
+
+修改：
+
+```text
+packages/frontend/core/src/modules/workbench/use-bind-workbench-to-browser-router.ts
+```
+
+完整重写：
 
 ```tsx
-const activeView = workbench.activeView;
-const activeViewPath = useLiveData(activeView?.path$ ?? emptyPath$);
+import { useEffect, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useService } from "~/src/framework/react";
+import { LiveData } from "~/src/shared/live-data";
+import { useLiveData } from "~/src/shared/use-live-data";
+import { WorkbenchService } from "./workbench-service";
+
+// useLiveData 不能条件调用，activeView 为空时用这个占位
+const EMPTY_PATH$ = new LiveData("");
+
+function splatToViewPath(splat: string | undefined) {
+  if (!splat) {
+    return "/all";
+  }
+
+  return splat.startsWith("/") ? splat : `/${splat}`;
+}
+
+function viewPathToSplat(viewPath: string) {
+  if (viewPath === "/all") {
+    return "all";
+  }
+
+  return viewPath.startsWith("/") ? viewPath.slice(1) : viewPath;
+}
+
+function buildBrowserPath(workspaceId: string, viewPath: string) {
+  const splat = viewPathToSplat(viewPath);
+  return `/workspace/${workspaceId}/${splat}`;
+}
+
+export function useBindWorkbenchToBrowserRouter() {
+  const navigate = useNavigate();
+  const { workspaceId, "*": splat } = useParams();
+  const workbench = useService(WorkbenchService);
+  const activeViewId = useLiveData(workbench.activeViewId$);
+  const activeView = workbench.activeView;
+  const activeViewPath = useLiveData(activeView?.path$ ?? EMPTY_PATH$);
+
+  const syncSource = useRef<"browser" | "workbench" | null>(null);
+
+  // browser URL -> workbench active view
+  useEffect(() => {
+    if (!workspaceId) {
+      return;
+    }
+
+    if (syncSource.current === "workbench") {
+      syncSource.current = null;
+      return;
+    }
+
+    syncSource.current = "browser";
+    workbench.open(splatToViewPath(splat));
+  }, [workspaceId, splat, workbench]);
+
+  // workbench active view -> browser URL
+  useEffect(() => {
+    if (!workspaceId || !activeView) {
+      return;
+    }
+
+    if (syncSource.current === "browser") {
+      syncSource.current = null;
+      return;
+    }
+
+    const nextPath = buildBrowserPath(workspaceId, activeViewPath);
+    const currentPath = buildBrowserPath(workspaceId, splatToViewPath(splat));
+
+    if (nextPath === currentPath) {
+      return;
+    }
+
+    syncSource.current = "workbench";
+    navigate(nextPath, { replace: true });
+  }, [workspaceId, activeViewId, activeViewPath, navigate, splat, activeView]);
+}
 ```
 
-其中 `emptyPath$` 可以是一个 module 级 `new LiveData("")`，当 `activeView` 为空时占位，避免 hook 条件调用。
+和 §8.2 版本的关键差异：
 
-workbench -> browser effect 的依赖从 `activeView?.path` 改成 `activeViewPath`。
+```text
+1. 新增 EMPTY_PATH$ 占位，避免 activeView 为空时条件调用 useLiveData
+2. workbench -> browser effect 依赖 activeViewPath（来自 path$），不是 activeView.path
+3. buildBrowserPath 的参数改用 activeViewPath
+```
+
+这样 tab 切换（`activeViewId$` 变）和 view 内 navigate（`path$` 变）都会同步到
+browser URL。第 9 步虽然还没做 view 内 navigate，但 adapter 先写对，后面加功能不用
+再改。
+
+#### 9.5.3 这一节不需要改的文件
+
+```text
+router.tsx          -> 仍是 /workspace/:workspaceId/* wildcard
+workspace-route.tsx -> 仍只 open workspace + 渲染 WorkbenchRoot
+AllDocsPage         -> 仍通过 workbench.open() 打开 doc，不直接 navigate
+ViewRoot            -> §9.4 已实现，本节只被 WorkbenchRoot 引用
+```
 
 ### 9.6 可选：证明 ViewScope 有用的最小例子
 
-加一条 view 级 service 可以帮你验证 scope 真的独立。例如：
+加一条 view 级 service，可以直观验证 **per-view scope 真的独立**，而不是所有 tab
+共享同一份 UI state。
+
+#### 9.6.1 新增 ViewUiService
+
+新增：
 
 ```text
 packages/frontend/core/src/modules/workbench/view-ui-service.ts
@@ -2853,7 +3101,145 @@ export class ViewUiService {
 }
 ```
 
-在 `ViewRoot` 的 child provider 里注册它，在 `AllDocsPage` 里读 `ViewUiService`。打开两个 doc tab，折叠 sidebar，两个 tab 的折叠状态应该互不影响。这个例子很小，但能直接证明 **per-view scope 不是过度设计**。
+这是典型的 view 级 state：sidebar 折叠状态应该属于某个 tab，不应该在 tab 之间共享。
+
+#### 9.6.2 在 useViewScope 里注册
+
+修改：
+
+```text
+packages/frontend/core/src/modules/workbench/use-view-scope.ts
+```
+
+```tsx
+import { useEffect, useState } from "react";
+import type { FrameworkProvider } from "~/src/framework/framework";
+import { useFrameworkProvider } from "~/src/framework/react";
+import type { View } from "./view";
+import { ViewScope } from "./view-scope";
+import { ViewUiService } from "./view-ui-service";
+
+export function useViewScope(view: View) {
+  const workspaceProvider = useFrameworkProvider();
+  const [viewProvider, setViewProvider] = useState<FrameworkProvider | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const provider = workspaceProvider.createChild((framework) => {
+      framework
+        .service(ViewScope, () => new ViewScope(view))
+        .service(ViewUiService, () => new ViewUiService());
+    });
+
+    setViewProvider(provider);
+
+    return () => {
+      provider.dispose();
+      setViewProvider(null);
+    };
+  }, [workspaceProvider, view]);
+
+  return viewProvider;
+}
+```
+
+每个 tab 的 `ViewRoot` 各自调用 `useViewScope`，因此每个 tab 有独立的
+`ViewUiService` 实例。
+
+#### 9.6.3 在 AllDocsPage 里消费
+
+修改：
+
+```text
+packages/frontend/core/src/pages/workspace/all-docs-page.tsx
+```
+
+```tsx
+import { useService } from "~/src/framework/react";
+import { DocService } from "~/src/modules/doc/doc-service";
+import { WorkbenchService } from "~/src/modules/workbench/workbench-service";
+import { ViewUiService } from "~/src/modules/workbench/view-ui-service";
+import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
+import { useLiveData } from "~/src/shared/use-live-data";
+
+export function AllDocsPage() {
+  const workspace = useService(WorkspaceService);
+  const docService = useService(DocService);
+  const workbench = useService(WorkbenchService);
+  const viewUi = useService(ViewUiService);
+  const docs = useLiveData(docService.docs$);
+  const ready = useLiveData(docService.ready$);
+  const error = useLiveData(docService.error$);
+  const sidebarCollapsed = useLiveData(viewUi.sidebarCollapsed$);
+
+  function createDoc() {
+    const doc = docService.create("Untitled");
+    workbench.open(`/${doc.id}`);
+  }
+
+  if (error) {
+    return <div>{error.message}</div>;
+  }
+
+  if (!ready) {
+    return <div>Loading docs...</div>;
+  }
+
+  return (
+    <section>
+      <h1>{workspace.name}</h1>
+
+      <button type="button" onClick={() => viewUi.toggleSidebar()}>
+        {sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      </button>
+
+      {!sidebarCollapsed && (
+        <aside>
+          <p>Sidebar (view-scoped)</p>
+        </aside>
+      )}
+
+      <button type="button" onClick={createDoc}>
+        New Doc
+      </button>
+
+      <ul>
+        {docs.map((doc) => (
+          <li key={doc.id}>
+            <button type="button" onClick={() => workbench.open(`/${doc.id}`)}>
+              {doc.title}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+```
+
+注意 `AllDocsPage` 同时读了两种 scope 的 service：
+
+```text
+WorkspaceService / DocService / WorkbenchService  -> workspace scope（所有 tab 共享）
+ViewUiService                                     -> view scope（每个 tab 独立）
+```
+
+#### 9.6.4 手动验证
+
+```text
+1. 打开 /workspace/local/all
+2. 点击 "Collapse sidebar"，sidebar 消失
+3. 打开两个 doc tab（例如 welcome 和另一个 doc）
+4. 在 tab A 折叠 sidebar
+5. 切到 tab B -> sidebar 应该仍是展开状态
+6. 在 tab B 折叠 sidebar
+7. 切回 tab A -> sidebar 应该仍是折叠状态
+8. 关闭 tab A -> 只 dispose tab A 的 ViewUiService，tab B 不受影响
+```
+
+如果两个 tab 的 sidebar 状态互不影响，说明 view child provider 边界是正确的。
+这个例子很小，但能直接证明 **per-view scope 不是过度设计**。
 
 ### 9.7 验收
 
@@ -2862,6 +3248,7 @@ export class ViewUiService {
 3. 关闭某个 tab 时，只 dispose 那个 view 的 child provider，workspace scope 不受影响。
 4. 如果实现了 `ViewUiService` 例子，两个 tab 的 sidebar 状态互不影响。
 5. `WorkbenchRoot` 文件里不再出现 page import，只剩 tab UI + `ViewRoot`。
+6. 在 StrictMode 下打开/关闭 tab、切换 workspace，控制台无 provider 相关报错，无 service 状态串扰。
 
 对照 AFFiNE：
 
@@ -2946,7 +3333,7 @@ ViewRoot 用 UNSAFE_LocationContext 把 memory router 注入 React Router 子树
 | workspace 内多 tab 谁管 | `WorkbenchService` |
 | tab UI 谁渲染 | `WorkbenchRoot` |
 | URL 和 tab 怎么同步 | `useBindWorkbenchToBrowserRouter` |
-| 每个 tab 的 scope | `ViewRoot` + `ViewScope` |
+| 每个 tab 的 scope | `useViewScope` + `ViewRoot` + `ViewScope` |
 
 有任意一行答不上来，就先补那一块，不要开 AFFiNE 新目录。
 
@@ -2996,7 +3383,7 @@ ViewRoot 用 UNSAFE_LocationContext 把 memory router 注入 React Router 子树
 11. router 改成 `/workspace/:workspaceId/*` wildcard，去掉 workspace nested children。
 12. 增加 `useBindWorkbenchToBrowserRouter`，让 URL 和 active view 双向同步。
 13. 把 plain `View` 升级成 class，增加 `path$` 和 `navigate()`。
-14. 实现 `ViewScope` + `ViewRoot`，把 page routing 从 `WorkbenchRoot` 拆出去。
+14. 实现 `ViewScope` + `useViewScope` + `ViewRoot`，把 page routing 从 `WorkbenchRoot` 拆出去。
 15. （可选）增加 `ViewUiService` 验证 per-view scope 真的独立。
 
 第 8 步对应提交 12，第 9 步对应提交 13–15。不要在一个提交里同时做 adapter 和
