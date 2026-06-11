@@ -1,6 +1,6 @@
-import { useParams } from "react-router-dom";
 import { useService } from "~/src/framework/react";
-import { DocService } from "~/src/modules/doc/doc-service";
+import { DocsService } from "~/src/modules/doc/docs-service";
+import { useDocScope } from "~/src/modules/doc/use-doc-scope";
 import { useLiveData } from "~/src/shared/use-live-data";
 
 type DocPageContentProps = {
@@ -8,37 +8,35 @@ type DocPageContentProps = {
 };
 
 export function DocPageContent({ docId }: DocPageContentProps) {
-  const docService = useService(DocService);
-  const docs = useLiveData(docService.docs$);
-  const ready = useLiveData(docService.ready$);
-  const error = useLiveData(docService.error$);
-  const doc = docs.find((item) => item.id === docId);
+  const docsService = useService(DocsService);
+  const ready = useLiveData(docsService.ready$);
+  const error = useLiveData(docsService.error$);
+  const docHandle = useDocScope(docId);
 
-  if (error) {
-    return <div>{error.message}</div>;
-  }
+  if (error) return <div>{error.message}</div>;
+  if (!ready) return <div>Loading docs...</div>;
+  if (!docHandle || !docId) return <div>Doc not found</div>;
 
-  if (!ready) {
-    return <div>Loading docs...</div>;
-  }
+  const doc = docHandle?.obj.doc ?? null;
 
-  if (!doc) {
-    return <div>Doc not found</div>;
-  }
+  return <DocPageEditor doc={doc} />;
+}
+
+function DocPageEditor({
+  doc,
+}: {
+  doc: NonNullable<ReturnType<typeof useDocScope>>["obj"]["doc"];
+}) {
+  const title = useLiveData(doc.title$);
+  const content = useLiveData(doc.content$);
 
   return (
     <article>
       <input
-        value={doc.title}
-        onChange={(event) => docService.rename(doc.id, event.target.value)}
+        value={title}
+        onChange={(event) => doc.rename(event.target.value)}
       />
-      <p>{doc.content || "Empty doc"}</p>
+      <p>{content || "Empty doc"}</p>
     </article>
   );
-}
-
-export function DocPage() {
-  const { docId } = useParams();
-
-  return <DocPageContent docId={docId} />;
 }

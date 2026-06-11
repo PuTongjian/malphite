@@ -3,6 +3,7 @@ import { DocStorageService } from "~/src/modules/storage";
 import { WorkspaceService } from "../workspace/workspace-service";
 import { DocService } from "./doc-service";
 import { DocStore } from "./doc-store";
+import { DocsService } from "./docs-service";
 
 export function configureDocModule(framework: Framework) {
   framework
@@ -14,5 +15,8 @@ export function configureDocModule(framework: Framework) {
         provider.get(WorkspaceService),
         provider.get(DocStore),
       );
+    })
+    .service(DocsService, (provider) => {
+      return new DocsService(provider, provider.get(DocService));
     });
 }

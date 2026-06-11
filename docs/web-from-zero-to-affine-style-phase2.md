@@ -707,7 +707,8 @@ export class DocsService {
     const docProvider = this.provider.createChild((framework) => {
       framework
         .service(DocScope, () => new DocScope(docId))
-        .service(DocStore, (p) => new DocStore(p.get(DocStore) as never)) // 见下方说明
+        // DocStore 不在这里注册：provider.get(DocStore) 会向上冒泡到 workspace
+        // scope 拿那一个共享实例。child scope 只放 DocScope + DocEntity。
         .entity(DocEntity, (p, _props) => {
           return new DocEntity(p.get(DocScope), p.get(DocStore));
         });
@@ -776,8 +777,6 @@ open(docId: string): DocOpenHandle {
 import type { Framework, FrameworkProvider } from "~/src/framework/framework";
 import { DocStorageService } from "~/src/modules/storage/doc-storage-service";
 import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
-import { DocEntity } from "./doc-entity";
-import { DocScope } from "./doc-scope";
 import { DocService } from "./doc-service";
 import { DocStore } from "./doc-store";
 import { DocsService } from "./docs-service";
@@ -793,9 +792,9 @@ export function configureDocModule(framework: Framework) {
         provider.get(DocStore),
       );
     })
-    .entity(DocEntity, (provider) => {
-      return new DocEntity(provider.get(DocScope), provider.get(DocStore));
-    })
+    // 注意：不在 workspace scope 注册 DocEntity。它依赖 DocScope，
+    // 而 DocScope 只存在于 DocsService.open 创建的 doc child scope 里，
+    // 所以 DocEntity 也只在那个 child scope 注册（见 open 实现）。
     .service(DocsService, (provider: FrameworkProvider) => {
       return new DocsService(
         provider,
@@ -914,7 +913,6 @@ export function DocPageContent({ docId }: DocPageContentProps) {
   const docHandle = useDocScope(docId);
 
   const doc = docHandle?.obj.doc ?? null;
-  const title = useLiveData(doc?.title$ ?? docsService.ready$); // 占位：见下方 DocPageEditor
 
   if (error) return <div>{error.message}</div>;
   if (!ready) return <div>Loading docs...</div>;
@@ -971,9 +969,10 @@ export interface DocStorage {
   getDoc(docId: string): Promise<DocRecord | null>;
   pushDocUpdate(docId: string, data: DocRecordData): Promise<void>;
   getDocList(workspaceId: string): Promise<string[]>;
-  subscribeDocUpdate(
-    callback: (docId: string) => void,
-  ): () => void;
+  // pushDocUpdate 只管单篇内容、不知道 workspace，所以文档列表要单独维护。
+  // 由持有完整列表的 DocStore.save 调 setDocList，否则新建的 doc 进不了 getDocList。
+  setDocList(workspaceId: string, docIds: string[]): Promise<void>;
+  subscribeDocUpdate(callback: (docId: string) => void): () => void;
 }
 ```
 
@@ -1034,8 +1033,12 @@ export class DocStore {
         content: doc.content,
       });
     }
-    // 注意：这里没有处理"删除的 doc"，生产版需要 tombstone
-    void workspaceId;
+    // 维护 workspace -> docIds 列表，否则 getDocList 读不到新建的 doc。
+    // 整包覆盖也顺带处理了"删除的 doc"（不在数组里就从列表消失）。
+    await this.storage.setDocList(
+      workspaceId,
+      docs.map((doc) => doc.id),
+    );
   }
 }
 ```
@@ -1050,8 +1053,12 @@ export class DocStore {
 import type { Doc, DocRecord, DocStorage } from "@malphite/core";
 
 const DB_NAME = "malphite-doc-storage";
-const DOC_STORE = "docs";
+// ← 新 store：按 docId 存 DocRecord。不要复用 Phase 1 的 "docs"
+//   （那个按 workspaceId 存 Doc[]，key 和 value 都不一样，复用会冲突）。
+const DOC_STORE = "doc-records";
 const META_STORE = "meta";
+// ← Phase 1 worker 旧 store，仅给下面遗留的 loadDocs/saveDocs 用
+const LEGACY_DOC_STORE = "docs";
 const DB_VERSION = 2;
 
 type MetaRecord = {
@@ -1061,13 +1068,29 @@ type MetaRecord = {
 
 let databasePromise: Promise<IDBDatabase> | null = null;
 
-// 主线程 / worker 都可用的订阅表（worker 内用模块级变量）
+// 跨 tab 通知：BroadcastChannel 管 tab 之间，本地 Set 管同一个 runtime。
+// 关键点：模块级 Set 只能通知同一 JS runtime 的订阅者，单靠它无法跨 tab；
+// 而 BroadcastChannel 不会把消息回投给发送方自己，所以两者都要。
 const subscribers = new Set<(docId: string) => void>();
+const channel =
+  typeof BroadcastChannel !== "undefined"
+    ? new BroadcastChannel("malphite-doc-update")
+    : null;
+
+channel?.addEventListener(
+  "message",
+  (event: MessageEvent<{ docId: string }>) => {
+    for (const cb of subscribers) {
+      cb(event.data.docId);
+    }
+  },
+);
 
 function notify(docId: string) {
   for (const cb of subscribers) {
     cb(docId);
   }
+  channel?.postMessage({ docId });
 }
 
 function openDatabase() {
@@ -1083,6 +1106,9 @@ function openDatabase() {
       }
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE);
+      }
+      if (!db.objectStoreNames.contains(LEGACY_DOC_STORE)) {
+        db.createObjectStore(LEGACY_DOC_STORE);
       }
     };
 
@@ -1141,57 +1167,31 @@ export function createIndexedDbDocStorage(): DocStorage {
       return meta?.docIds ?? [];
     },
 
+    async setDocList(workspaceId: string, docIds: string[]) {
+      await idbPut(META_STORE, workspaceId, {
+        workspaceId,
+        docIds,
+      } satisfies MetaRecord);
+    },
+
     subscribeDocUpdate(callback: (docId: string) => void) {
       subscribers.add(callback);
-      return () => subscribers.delete(callback);
+      return () => {
+        subscribers.delete(callback);
+      };
     },
   };
 }
 
-// worker 侧辅助：维护 workspace -> docIds 列表
-export async function ensureDocInWorkspaceList(
-  workspaceId: string,
-  docId: string,
-) {
-  const meta =
-    (await idbGet<MetaRecord>(META_STORE, workspaceId)) ??
-    ({ workspaceId, docIds: [] } satisfies MetaRecord);
-
-  if (!meta.docIds.includes(docId)) {
-    meta.docIds.push(docId);
-    await idbPut(META_STORE, workspaceId, meta);
-  }
-}
-
-// 过渡期：把旧版 loadDocs/saveDocs 也保留，便于渐进迁移
+// ⚠️ 以下是 Phase 1 worker 旧路径的遗留函数（store="docs"，按 workspaceId 存 Doc[]）。
+// Phase C 起 doc 数据走主线程 createIndexedDbDocStorage（store="doc-records"），
+// 不再经过 worker。保留它们只是让 doc-storage.worker.ts 仍能编译；新流程不应再调用。
 export async function loadDocs(workspaceId: string): Promise<Doc[]> {
-  const storage = createIndexedDbDocStorage();
-  const ids = await storage.getDocList(workspaceId);
-  const docs: Doc[] = [];
-
-  for (const id of ids) {
-    const record = await storage.getDoc(id);
-    if (record) {
-      docs.push({
-        id: record.docId,
-        title: record.data.title,
-        content: record.data.content,
-      });
-    }
-  }
-
-  return docs;
+  return (await idbGet<Doc[]>(LEGACY_DOC_STORE, workspaceId)) ?? [];
 }
 
 export async function saveDocs(workspaceId: string, docs: Doc[]) {
-  const storage = createIndexedDbDocStorage();
-  for (const doc of docs) {
-    await storage.pushDocUpdate(doc.id, {
-      title: doc.title,
-      content: doc.content,
-    });
-    await ensureDocInWorkspaceList(workspaceId, doc.id);
-  }
+  await idbPut(LEGACY_DOC_STORE, workspaceId, docs);
 }
 ```
 
@@ -1209,28 +1209,38 @@ export class DocFrontend {
   constructor(private storage: DocStorage) {}
 
   connect(doc: DocEntity) {
-    // 1. 加载已有数据
-    void this.storage.getDoc(doc.id).then((record) => {
-      if (!record) return;
+    // 应用"远端/加载来的数据"时打开这个开关，让下面的 push 跳过，
+    // 否则一加载就把同样的数据又写回存储、再 notify，形成无谓回声。
+    let applyingRemote = false;
+    const applyRecord = (record: { data: { title: string; content: string } }) => {
+      applyingRemote = true;
       doc.title$.set(record.data.title);
       doc.content$.set(record.data.content);
+      applyingRemote = false;
+    };
+
+    // 1. 加载已有数据
+    void this.storage.getDoc(doc.id).then((record) => {
+      if (record) applyRecord(record);
     });
 
-    // 2. 订阅远端/其它 tab 的更新
+    // 2. 订阅远端 / 其它 tab 的更新
     const unsubscribeRemote = this.storage.subscribeDocUpdate((docId) => {
       if (docId !== doc.id) return;
-
       void this.storage.getDoc(docId).then((record) => {
-        if (!record) return;
-        doc.content$.set(record.data.content);
-        doc.title$.set(record.data.title);
+        if (record) applyRecord(record);
       });
     });
 
     // 3. 本地改动 -> push update
     let pushing = false;
+    let dirty = false;
     const push = () => {
-      if (pushing) return;
+      if (applyingRemote) return; // 远端写入触发的 set，不要再 push 回去
+      if (pushing) {
+        dirty = true; // 进行中又改了，标记一下，完成后补一次（否则丢掉最后一次编辑）
+        return;
+      }
       pushing = true;
       void this.storage
         .pushDocUpdate(doc.id, {
@@ -1239,6 +1249,10 @@ export class DocFrontend {
         })
         .finally(() => {
           pushing = false;
+          if (dirty) {
+            dirty = false;
+            push();
+          }
         });
     };
 
@@ -1255,6 +1269,104 @@ export class DocFrontend {
 ```
 
 在 `DocsService.open` 里，`docEntity` 创建后调用 `docFrontend.connect(docEntity)`，把返回的 cleanup 放进 `handle.dispose` 链。
+
+> **接线与线程边界（Phase C 必读）**
+>
+> Phase B 的 `DocStore` 依赖 `DocStorageService`（load/save 整包）；Phase C 改成依赖新的 `DocStorage`（按 doc 粒度）。这里有两个必须补的接线，文档前面没展开，补在这里：
+>
+> 1. **storage 跑在哪个线程**。`subscribeDocUpdate` 要在主线程被 `DocFrontend` 订阅，而 Phase 1 的 worker RPC 只有"请求-响应"，没有 worker→主线程的主动推送通道。最小可行做法是：**Phase C 把 doc 存储放回主线程**（IndexedDB 主线程也能用），Phase 1 的 worker 在 doc 流程里被旁路。这是刻意的简化——真实 AFFiNE 用 worker + 一条订阅 RPC 把它留在 worker 里，这里先不做，但要清楚边界在哪。
+> 2. **用一个 class 当 DI token**，因为框架按 Constructor 找 service，接口不能当 token。
+
+在 `doc-storage.ts` 末尾加 token holder（和 `DocStorageProvider` 同一套路）：
+
+```ts
+export class DocStorageHandle {
+  constructor(public readonly storage: DocStorage) {}
+}
+```
+
+`core/src/index.ts` 增加导出（worker 文件和 app 入口要用）：
+
+```ts
+export type {
+  DocRecord,
+  DocRecordData,
+  DocStorage,
+} from "./modules/storage/doc-storage";
+export { DocStorageHandle } from "./modules/storage/doc-storage";
+```
+
+`configureDocModule`（Phase C 版）把 `DocStore` 改接 `DocStorage` + workspaceId，并注册 `DocFrontend`：
+
+```ts
+import type { Framework, FrameworkProvider } from "~/src/framework/framework";
+import { DocStorageHandle } from "~/src/modules/storage/doc-storage";
+import { WorkspaceService } from "~/src/modules/workspace/workspace-service";
+import { DocFrontend } from "./doc-frontend";
+import { DocService } from "./doc-service";
+import { DocStore } from "./doc-store";
+import { DocsService } from "./docs-service";
+
+export function configureDocModule(framework: Framework) {
+  framework
+    .service(DocStore, (provider) => {
+      return new DocStore(
+        provider.get(DocStorageHandle).storage,
+        provider.get(WorkspaceService).id,
+      );
+    })
+    .service(DocFrontend, (provider) => {
+      return new DocFrontend(provider.get(DocStorageHandle).storage);
+    })
+    .service(DocService, (provider) => {
+      return new DocService(
+        provider.get(WorkspaceService),
+        provider.get(DocStore),
+      );
+    })
+    .service(DocsService, (provider: FrameworkProvider) => {
+      return new DocsService(
+        provider,
+        provider.get(WorkspaceService),
+        provider.get(DocService),
+        provider.get(DocFrontend),
+      );
+    });
+}
+```
+
+app 入口注册主线程 storage（`app/web/src/app.tsx`）：
+
+```ts
+import { DocStorageHandle } from "@malphite/core";
+import { createIndexedDbDocStorage } from "./doc-storage-idb";
+
+framework.service(DocStorageHandle, () => {
+  return new DocStorageHandle(createIndexedDbDocStorage());
+});
+```
+
+`DocsService` 多接一个 `DocFrontend`，在 `open` 里 `connect` 并把 cleanup 串进 `handle.dispose`：
+
+```ts
+constructor(
+  private provider: FrameworkProvider,
+  private workspaceService: WorkspaceService,
+  private listService: DocService,
+  private docFrontend: DocFrontend,
+) {}
+
+// open(...) 内，docEntity 创建之后：
+const disconnect = this.docFrontend.connect(docEntity);
+const handle = {
+  doc: docEntity,
+  provider: docProvider,
+  dispose: () => {
+    disconnect();
+    docProvider.dispose();
+  },
+};
+```
 
 ---
 
@@ -1417,6 +1529,8 @@ export const MAIN_VIEW = new View("main", {
 });
 ```
 
+> **关于这套 history 栈的用途**：`entries` / `cursor` / `back` / `forward` 服务的是 **view 内部的前进/后退控件**（类似 AFFiNE 每个 tab 的返回箭头），需要你在 UI 上加按钮调用 `view.back()` / `view.forward()`，否则这套栈就是死代码。它和"浏览器后退"是两回事——浏览器后退由 browser history 负责（见 D2 的 `navigate` push/replace），不走这个栈。把 `popstate` 接到 `view.back()` 是更进一步的练习，这里先把栈建好。
+
 ---
 
 ### D2. browser adapter 完整版（支持 push / back）
@@ -1468,11 +1582,12 @@ export function useBindWorkbenchToBrowserRouter() {
     }
 
     syncSource.current = "browser";
-    const viewPath = splatToViewPath(splat);
 
-    workbench.open(viewPath);
-    activeView?.replace(viewPath);
-  }, [workspaceId, splat, workbench, activeView]);
+    // 只 open/activate 对应 path 的 view。不要在这里 activeView?.replace(...)：
+    // 此刻闭包里的 activeView 还是切换前的旧 view，replace 会改到错误的对象；
+    // 而且 open 已经给新 view 设好 path、对已存在的 view 只激活，无需再 replace。
+    workbench.open(splatToViewPath(splat));
+  }, [workspaceId, splat, workbench]);
 
   // workbench active view 变化 -> 更新浏览器 URL
   useEffect(() => {
@@ -1508,27 +1623,14 @@ export function useBindWorkbenchToBrowserRouter() {
 #### 文件 1：`packages/frontend/core/src/modules/workbench/view-routes.tsx`（新建）
 
 ```ts
-import type { RouteObject } from "react-router-dom";
-import { AllDocsPage } from "~/src/pages/workspace/all-docs-page";
-import { DocPageContent } from "~/src/pages/workspace/doc-page";
-import { WorkspaceSettingsPage } from "~/src/pages/workspace/settings-page";
-
-export const viewRoutes: RouteObject[] = [
-  { path: "/all", element: <AllDocsPage /> },
-  { path: "/settings", element: <WorkspaceSettingsPage /> },
-  { path: "/:docId", element: <DocPageContent docId={undefined} /> },
-];
-```
-
-> `/:docId` 的 `docId` 在 memory router 里用 `useParams` 取。更干净的做法是用 wrapper：
-
-```ts
 import { useParams } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 import { AllDocsPage } from "~/src/pages/workspace/all-docs-page";
 import { DocPageContent } from "~/src/pages/workspace/doc-page";
 import { WorkspaceSettingsPage } from "~/src/pages/workspace/settings-page";
 
+// /:docId 的 docId 要在 memory router 里用 useParams 取，
+// 不能像早期写法那样写死成 docId={undefined}，否则 doc 页永远拿不到 id。
 function DocRoute() {
   const { docId } = useParams();
   return <DocPageContent docId={docId} />;
@@ -1642,8 +1744,8 @@ export class DocEntity {
     });
   }
 
-  applyUpdate(update: Uint8Array) {
-    Y.applyUpdate(this.ydoc, update);
+  applyUpdate(update: Uint8Array, origin?: unknown) {
+    Y.applyUpdate(this.ydoc, update, origin);
   }
 
   encodeUpdate(): Uint8Array {
@@ -1660,26 +1762,38 @@ export class DocEntity {
 
 ```ts
 connect(doc: DocEntity) {
-  // 加载
+  // transaction origin 标记，用来区分"自己改的"和"远端 apply 进来的"。
+  const REMOTE = "remote";
+
+  // record.data 在 E1 之后是 { update: Uint8Array }（不再是 { title, content }）。
+  // DocRecordData 这里应随之改成二进制形状；下面先用局部断言取出 update。
+  const readUpdate = (record: DocRecord | null) =>
+    (record?.data as { update?: Uint8Array } | undefined)?.update;
+
+  // 加载：把存储里的整份状态 apply 进来（标 origin=REMOTE，避免下面又推回去）
   void this.storage.getDoc(doc.id).then((record) => {
-    if (record?.data && "update" in record.data) {
-      doc.applyUpdate(record.data.update as Uint8Array);
-    }
+    const update = readUpdate(record);
+    if (update) doc.applyUpdate(update, REMOTE);
   });
 
-  // 订阅
+  // 订阅远端 / 其它 tab
   const off = this.storage.subscribeDocUpdate((docId) => {
     if (docId !== doc.id) return;
     void this.storage.getDoc(docId).then((record) => {
-      if (record?.data && "update" in record.data) {
-        doc.applyUpdate(record.data.update as Uint8Array);
-      }
+      const update = readUpdate(record);
+      if (update) doc.applyUpdate(update, REMOTE);
     });
   });
 
-  // 本地 ydoc update -> push
-  const onUpdate = (update: Uint8Array) => {
-    void this.storage.pushDocUpdate(doc.id, { update } as never);
+  // 本地 ydoc 改动 -> push。两个要点：
+  // 1. origin === REMOTE 时跳过，否则远端 apply 会立刻被推回去形成回声。
+  // 2. toy 简化：存整份快照 encodeStateAsUpdate()，不是增量；
+  //    覆盖式存储若只存最后一个增量，重载时会丢历史。
+  const onUpdate = (_update: Uint8Array, origin: unknown) => {
+    if (origin === REMOTE) return;
+    void this.storage.pushDocUpdate(doc.id, {
+      update: doc.encodeUpdate(),
+    } as never);
   };
   doc.ydoc.on("update", onUpdate);
 

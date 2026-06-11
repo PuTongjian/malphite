@@ -1,14 +1,59 @@
-import type { DocStorageService } from "~/src/modules/storage/doc-storage-service";
+import type {
+  DocRecordData,
+  DocStorage,
+} from "~/src/modules/storage/doc-storage";
 import type { Doc } from "./doc-types";
 
 export class DocStore {
-  constructor(private storage: DocStorageService) {}
+  constructor(
+    private storage: DocStorage,
+    private workspaceId: string,
+  ) {}
 
-  load(workspaceId: string): Promise<Doc[]> {
-    return this.storage.load(workspaceId);
+  async getDoc(docId: string) {
+    return this.storage.getDoc(docId);
   }
 
-  save(workspaceId: string, docs: Doc[]): Promise<void> {
-    return this.storage.save(workspaceId, docs);
+  async pushDocUpdate(docId: string, data: DocRecordData) {
+    await this.storage.pushDocUpdate(docId, data);
+  }
+  subscribeDocUpdate(callback: (docId: string) => void) {
+    return this.storage.subscribeDocUpdate(callback);
+  }
+
+  async listDocIds() {
+    return this.storage.getDocList(this.workspaceId);
+  }
+
+  async load(workspaceId: string): Promise<Doc[]> {
+    const ids = await this.storage.getDocList(workspaceId);
+    const docs: Doc[] = [];
+
+    for (const id of ids) {
+      const record = await this.storage.getDoc(id);
+      if (record) {
+        docs.push({
+          id: record.docId,
+          title: record.data.title,
+          content: record.data.content,
+        });
+      }
+    }
+
+    return docs;
+  }
+
+  async save(workspaceId: string, docs: Doc[]): Promise<void> {
+    for (const doc of docs) {
+      await this.storage.pushDocUpdate(doc.id, {
+        title: doc.title,
+        content: doc.content,
+      });
+    }
+
+    await this.storage.setDocList(
+      workspaceId,
+      docs.map((doc) => doc.id),
+    );
   }
 }
