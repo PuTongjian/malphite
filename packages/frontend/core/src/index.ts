@@ -11,6 +11,7 @@ export {
   configureBrowserDocStorageModules,
   WorkerDocStorageDriver,
 } from "./modules/storage";
+export type { DocRecord, DocStorage } from "./modules/storage/doc-storage";
 export type {
   WorkerRequest,
   WorkerResponse,
