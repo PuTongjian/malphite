@@ -16,3 +16,7 @@ export interface DocStorage {
   setDocList(workspaceId: string, docIds: string[]): Promise<void>;
   subscribeDocUpdate(callback: (docId: string) => void): () => void;
 }
+
+export class DocStorageHandle {
+  constructor(public readonly storage: DocStorage) {}
+}
