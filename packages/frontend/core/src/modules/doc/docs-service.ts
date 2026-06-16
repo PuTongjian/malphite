@@ -62,12 +62,12 @@ export class DocsService {
     const record = this.listService.get(docId);
     const docEntity = docProvider.createEntity(DocEntity, undefined as never);
 
-    const disconnect = this.docFrontend.connect(docEntity);
-
     if (record) {
       docEntity.title$.set(record.title);
       docEntity.content$.set(record.content);
     }
+
+    const disconnect = this.docFrontend.connect(docEntity);
 
     const handle = {
       doc: docEntity,
