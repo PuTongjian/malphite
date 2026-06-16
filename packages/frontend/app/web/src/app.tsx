@@ -3,18 +3,25 @@ import {
   AppShell,
   configureBrowserDocStorageModules,
   configureCommonModules,
+  DocStorageHandle,
   Framework,
   FrameworkRoot,
   router,
   WorkerDocStorageDriver,
 } from "@malphite/core";
 import { RouterProvider } from "react-router-dom";
+import { createIndexedDbDocStorage } from "./doc-storage-idb";
 
 const worker = new Worker(new URL("./doc-storage.worker.ts", import.meta.url), {
   type: "module",
 });
 
 const framework = new Framework();
+
+framework.service(DocStorageHandle, () => {
+  return new DocStorageHandle(createIndexedDbDocStorage());
+});
+
 configureCommonModules(framework);
 configureBrowserDocStorageModules(
   framework,

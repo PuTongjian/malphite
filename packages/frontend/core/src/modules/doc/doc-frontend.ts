@@ -12,7 +12,7 @@ export class DocFrontend {
     }) => {
       applyingRemote = true;
       doc.title$.set(record.data.title);
-      doc.title$.set(record.data.content);
+      doc.content$.set(record.data.content);
       applyingRemote = false;
     };
 

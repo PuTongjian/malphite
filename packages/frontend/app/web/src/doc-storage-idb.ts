@@ -73,7 +73,7 @@ function idbGet<T>(storeName: string, key: string): Promise<T | undefined> {
   return openDatabase().then(
     (db) =>
       new Promise((resolve, reject) => {
-        const tx = db.transaction("storeName", "readonly");
+        const tx = db.transaction(storeName, "readonly");
         const request = tx.objectStore(storeName).get(key) as IDBRequest<T>;
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);

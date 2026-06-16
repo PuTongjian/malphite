@@ -24,6 +24,10 @@ export function configureDocModule(framework: Framework) {
       );
     })
     .service(DocsService, (provider) => {
-      return new DocsService(provider, provider.get(DocService));
+      return new DocsService(
+        provider,
+        provider.get(DocService),
+        provider.get(DocFrontend),
+      );
     });
 }

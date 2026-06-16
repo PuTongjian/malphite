@@ -1,6 +1,7 @@
 import type { FrameworkProvider } from "~/src/framework/framework";
 import { ObjectPool, type PoolHandle } from "~/src/shared/object-pool";
 import { DocEntity } from "./doc-entity";
+import type { DocFrontend } from "./doc-frontend";
 import { DocScope } from "./doc-scope";
 import type { DocService } from "./doc-service";
 import { DocStore } from "./doc-store";
@@ -17,6 +18,7 @@ export class DocsService {
   constructor(
     private provider: FrameworkProvider,
     private listService: DocService,
+    private docFrontend: DocFrontend,
   ) {}
 
   get docs$() {
@@ -60,6 +62,8 @@ export class DocsService {
     const record = this.listService.get(docId);
     const docEntity = docProvider.createEntity(DocEntity, undefined as never);
 
+    const disconnect = this.docFrontend.connect(docEntity);
+
     if (record) {
       docEntity.title$.set(record.title);
       docEntity.content$.set(record.content);
@@ -68,7 +72,10 @@ export class DocsService {
     const handle = {
       doc: docEntity,
       provider: docProvider,
-      dispose: () => docProvider.dispose(),
+      dispose: () => {
+        disconnect();
+        docProvider.dispose();
+      },
     };
 
     const pooled = this.pool.put(docId, handle);
