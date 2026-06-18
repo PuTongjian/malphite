@@ -36,7 +36,10 @@ function DocPageEditor({
         value={title}
         onChange={(event) => doc.rename(event.target.value)}
       />
-      <p>{content || "Empty doc"}</p>
+      <textarea
+        value={content}
+        onChange={(event) => doc.setContent(event.target.value)}
+      />
     </article>
   );
 }
