@@ -10,3 +10,6 @@ dist
 
 # agent files
 .vix
+
+# doc files
+docs
