@@ -1,10 +1,8 @@
 import type { Framework } from "~/src/framework/framework";
-import { DocStorageHandle } from "./doc-storage";
 import { DocStorageProvider } from "./doc-storage-provider";
 import type { DocStorageDriver } from "./doc-storage-service";
 import { DocStorageService } from "./doc-storage-service";
 import { LocalDocStorageDriver } from "./local-doc-storage-driver";
-import { SyncEngine } from "./sync-engine";
 
 export { DocStorageProvider } from "./doc-storage-provider";
 export { DocStorageService } from "./doc-storage-service";
@@ -23,11 +21,5 @@ export function configureBrowserDocStorageModules(
 ) {
   framework.service(DocStorageProvider, () => {
     return new DocStorageProvider(driver);
-  });
-}
-
-export function configureSyncEngineModule(framework: Framework) {
-  framework.service(SyncEngine, (provider) => {
-    return new SyncEngine(provider.get(DocStorageHandle).storage);
   });
 }
