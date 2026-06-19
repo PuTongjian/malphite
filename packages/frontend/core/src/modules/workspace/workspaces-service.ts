@@ -3,6 +3,7 @@ import { configureDocModule } from "~/src/modules/doc";
 import { configureWorkbenchModule } from "~/src/modules/workbench";
 import { LiveData } from "~/src/shared/live-data";
 import { configureWorkspaceScopeModule } from "./index";
+import { WorkspaceEngine } from "./workspace-engine";
 import { WorkspaceRef } from "./workspace-ref";
 import { WorkspaceScope } from "./workspace-scope";
 
@@ -31,7 +32,14 @@ export class WorkspacesService {
       configureDocModule(framework);
       configureWorkbenchModule(framework);
     });
+    try {
+      const engine = provider.get(WorkspaceEngine);
+      engine.start();
 
-    return new WorkspaceRef(meta, provider);
+      return new WorkspaceRef(meta, provider, engine);
+    } catch (error) {
+      provider.dispose();
+      throw error;
+    }
   }
 }

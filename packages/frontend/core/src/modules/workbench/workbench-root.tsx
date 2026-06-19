@@ -1,8 +1,21 @@
 import { useService } from "~/src/framework/react";
+import { SyncEngine } from "~/src/modules/storage/sync-engine";
 import { useLiveData } from "~/src/shared/use-live-data";
 import { useBindWorkbenchToBrowserRouter } from "./use-bind-workbench-to-browser-router";
 import { ViewRoot } from "./view-root";
 import { WorkbenchService } from "./workbench-service";
+
+function SyncStatus() {
+  const sync = useService(SyncEngine);
+  const state = useLiveData(sync.state$);
+  const error = useLiveData(sync.error$);
+
+  if (error) {
+    return <span>Sync: error</span>;
+  }
+
+  return <span>Sync: {state}</span>;
+}
 
 export function WorkbenchRoot() {
   useBindWorkbenchToBrowserRouter();
@@ -50,6 +63,8 @@ export function WorkbenchRoot() {
             Settings
           </button>
         </nav>
+
+        <SyncStatus />
       </header>
 
       <ViewRoot view={activeView} />
