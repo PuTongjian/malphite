@@ -51,6 +51,10 @@ export class DocStore {
       });
     }
 
+    this.setDocList(workspaceId, docs);
+  }
+
+  async setDocList(workspaceId: string, docs: Doc[]): Promise<void> {
     await this.storage.setDocList(
       workspaceId,
       docs.map((doc) => doc.id),

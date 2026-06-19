@@ -34,17 +34,32 @@ export class DocService {
       content: "",
     };
 
-    void this.save([...this.docs$.value, doc]);
+    const nextDocs = [...this.docs$.value, doc];
+    this.docs$.set(nextDocs);
+    this.error$.set(null);
+
+    void this.createInStorage(doc, nextDocs);
 
     return doc;
   }
 
   rename(id: string, title: string) {
-    const nextDocs = this.docs$.value.map((doc) => {
-      return doc.id === id ? { ...doc, title } : doc;
-    });
+    const existing = this.docs$.value.find((doc) => doc.id === id);
 
-    void this.save(nextDocs);
+    const nextDocs = existing
+      ? this.docs$.value.map((doc) => {
+          return doc.id === id ? { ...doc, title } : doc;
+        })
+      : [
+          ...this.docs$.value,
+          {
+            id,
+            title,
+            content: "",
+          },
+        ];
+
+    this.docs$.set(nextDocs);
   }
 
   get(id: string) {
@@ -58,6 +73,18 @@ export class DocService {
       const stored = await this.storage.load(this.workspaceService.id);
       this.docs$.set(stored.length > 0 ? stored : [createWelcomeDoc()]);
       this.ready$.set(true);
+    } catch (error) {
+      this.error$.set(toError(error));
+    }
+  }
+
+  private async createInStorage(doc: Doc, docs: Doc[]) {
+    try {
+      await this.storage.pushDocUpdate(doc.id, {
+        title: doc.title,
+        content: doc.content,
+      });
+      await this.storage.setDocList(this.workspaceService.id, docs);
     } catch (error) {
       this.error$.set(toError(error));
     }

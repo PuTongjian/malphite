@@ -37,6 +37,10 @@ export class DocsService {
     return this.listService.create(title);
   }
 
+  rename(id: string, title: string) {
+    this.listService.rename(id, title);
+  }
+
   open(docId: string): DocOpenHandle {
     const existing = this.pool.get(docId);
 
@@ -64,7 +68,6 @@ export class DocsService {
 
     if (record) {
       docEntity.title$.set(record.title);
-      docEntity.content$.set(record.content);
     }
 
     const disconnect = this.docFrontend.connect(docEntity);
