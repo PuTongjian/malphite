@@ -60,7 +60,7 @@ export class DocFrontend {
     const unsubscribeRemote = this.storage.subscribeDocUpdate((docId) => {
       if (docId !== doc.id) return;
       void this.storage.getDoc(docId).then((record) => {
-        if (record) applyRecord(record);
+        if (record) applyStorageRecord(record);
       });
     });
 
