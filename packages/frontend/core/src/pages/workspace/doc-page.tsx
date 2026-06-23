@@ -19,13 +19,15 @@ export function DocPageContent({ docId }: DocPageContentProps) {
 
   const doc = docHandle?.obj.doc ?? null;
 
-  return <DocPageEditor doc={doc} />;
+  return <DocPageEditor doc={doc} docsService={docsService} />;
 }
 
 function DocPageEditor({
   doc,
+  docsService,
 }: {
   doc: NonNullable<ReturnType<typeof useDocScope>>["obj"]["doc"];
+  docsService: DocsService;
 }) {
   const title = useLiveData(doc.title$);
   const content = useLiveData(doc.content$);
@@ -34,7 +36,11 @@ function DocPageEditor({
     <article>
       <input
         value={title}
-        onChange={(event) => doc.rename(event.target.value)}
+        onChange={(event) => {
+          const nextTitle = event.target.value;
+          doc.rename(nextTitle);
+          docsService.rename(doc.id, nextTitle);
+        }}
       />
       <textarea
         value={content}
