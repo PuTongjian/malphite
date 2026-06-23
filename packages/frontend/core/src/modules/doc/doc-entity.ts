@@ -21,10 +21,5 @@ export class DocEntity {
 
   setContent(content: string) {
     this.content$.set(content);
-    // Phase C：改成 store.pushDocUpdate
-  }
-
-  dispose() {
-    // Phase C：在这里断开 DocFrontend 订阅
   }
 }
