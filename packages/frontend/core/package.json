@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/react": "catalog:",
     "react": "catalog:",
-    "react-router-dom": "catalog:"
+    "react-router-dom": "catalog:",
+    "yjs": "^13.6.31"
   }
 }

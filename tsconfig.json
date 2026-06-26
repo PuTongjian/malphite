@@ -76,5 +76,9 @@
   "files": [],
   "exclude": ["node_modules", "target", "dist", "lib"],
   // 项目引用 / Project References
-  "references": [{ "path": "./tools/cli" }, { "path": "./tools/utils" }]
+  "references": [
+    { "path": "./packages/frontend/core" },
+    { "path": "./tools/cli" },
+    { "path": "./tools/utils" }
+  ]
 }
