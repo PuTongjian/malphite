@@ -1,19 +1,22 @@
-export type DocRecordData = {
-  title: string;
-  content: string;
-};
-
-export type DocRecord = {
+export type DocUpdateRecord = {
   docId: string;
-  data: DocRecordData;
+  updata: Uint8Array;
+  clock: number;
   timestamp: number;
 };
 
+export type DocMetaRecord = {
+  id: string;
+  title: string;
+};
+
 export interface DocStorage {
-  getDoc(docId: string): Promise<DocRecord | null>;
-  pushDocUpdate(docId: string, data: DocRecordData): Promise<void>;
-  getDocList(workspaceId: string): Promise<string[]>;
-  setDocList(workspaceId: string, docIds: string[]): Promise<void>;
+  getDocUpdates(docId: string): Promise<DocUpdateRecord[]>;
+  getDocUpdatesAfter(docId: string, clock: number): Promise<DocUpdateRecord[]>;
+  pushDocUpdate(docId: string, update: Uint8Array): Promise<DocUpdateRecord>;
+  getDocClock(docId: string): Promise<number>;
+  getDocList(workspaceId: string): Promise<DocMetaRecord[]>;
+  setDocList(workspaceId: string, docs: DocMetaRecord[]): Promise<void>;
   subscribeDocUpdate(callback: (docId: string) => void): () => void;
 }
 
