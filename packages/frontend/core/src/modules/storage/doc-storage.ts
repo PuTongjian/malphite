@@ -1,6 +1,6 @@
 export type DocUpdateRecord = {
   docId: string;
-  updata: Uint8Array;
+  update: Uint8Array;
   clock: number;
   timestamp: number;
 };

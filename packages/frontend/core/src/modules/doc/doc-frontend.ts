@@ -1,124 +1,105 @@
+import * as Y from "yjs";
 import type { DocStorage } from "~/src/modules/storage/doc-storage";
 import type { DocEntity } from "./doc-entity";
+import { applyToyDocUpdate } from "./yjs-doc-codec";
 
 export class DocFrontend {
   constructor(private storage: DocStorage) {}
 
   connect(doc: DocEntity) {
-    let applyingRemote = false;
+    let applyingStorage = false;
     let initialLoadComplete = false;
-    let titleChangedBeforeInitialLoad = false;
-    let contentChangedBeforeInitialLoad = false;
-
-    const applyRecord = (record: {
-      data: { title: string; content: string };
-    }) => {
-      applyingRemote = true;
-      doc.title$.set(record.data.title);
-      doc.content$.set(record.data.content);
-      applyingRemote = false;
-    };
-
-    const applyInitialRecord = (record: {
-      data: { title: string; content: string };
-    }) => {
-      applyingRemote = true;
-      if (!titleChangedBeforeInitialLoad) {
-        doc.title$.set(record.data.title);
-      }
-
-      if (!contentChangedBeforeInitialLoad) {
-        doc.content$.set(record.data.content);
-      }
-
-      applyingRemote = false;
-    };
-
-    const applyStorageRecord = (record: {
-      data: { title: string; content: string };
-    }) => {
-      if (initialLoadComplete) {
-        applyRecord(record);
-      } else {
-        applyInitialRecord(record);
-      }
-    };
-
-    void this.storage
-      .getDoc(doc.id)
-      .then((record) => {
-        if (record) applyStorageRecord(record);
-      })
-      .finally(() => {
-        initialLoadComplete = true;
-        if (dirty) {
-          dirty = false;
-          push();
-        }
-      });
-
-    const unsubscribeRemote = this.storage.subscribeDocUpdate((docId) => {
-      if (docId !== doc.id) return;
-      void this.storage.getDoc(docId).then((record) => {
-        if (record) applyStorageRecord(record);
-      });
-    });
-
+    let queuedBeforeInitialLoad = false;
     let pushing = false;
-    let dirty = false;
+    let queuedUpdate: Uint8Array | null = null;
 
-    const push = () => {
-      if (applyingRemote) return;
+    const pushUpdate = (update: Uint8Array) => {
+      if (applyingStorage) return;
 
       if (!initialLoadComplete) {
-        dirty = true;
+        queuedBeforeInitialLoad = true;
+        queuedUpdate = mergeQueuedUpdate(queuedUpdate, update);
         return;
       }
 
       if (pushing) {
-        dirty = true;
+        queuedUpdate = mergeQueuedUpdate(queuedUpdate, update);
         return;
       }
 
       pushing = true;
-      void this.storage
-        .pushDocUpdate(doc.id, {
-          title: doc.title$.value,
-          content: doc.content$.value,
-        })
-        .finally(() => {
-          pushing = false;
-          if (dirty) {
-            dirty = false;
-            push();
+      void this.storage.pushDocUpdate(doc.id, update).finally(() => {
+        pushing = false;
+
+        if (queuedUpdate) {
+          const next = queuedUpdate;
+          queuedUpdate = null;
+          pushUpdate(next);
+        }
+      });
+    };
+
+    const handleLocalUpdate = (update: Uint8Array, origin: unknown) => {
+      if (origin === "storage") return;
+
+      pushUpdate(update);
+    };
+
+    doc.ydoc.on("update", handleLocalUpdate);
+
+    void this.storage
+      .getDocUpdates(doc.id)
+      .then((updates) => {
+        applyingStorage = true;
+        doc.applyRemoteUpdate(() => {
+          for (const record of updates) {
+            applyToyDocUpdate(doc.ydoc, record.update);
           }
         });
-    };
+      })
+      .finally(() => {
+        applyingStorage = false;
+        initialLoadComplete = true;
 
-    const markLocalChange = (field: "title" | "content") => {
-      if (applyingRemote) return;
-      if (!initialLoadComplete) {
-        if (field === "title") {
-          titleChangedBeforeInitialLoad = true;
-        } else {
-          contentChangedBeforeInitialLoad = true;
+        if (queuedBeforeInitialLoad && queuedUpdate) {
+          queuedBeforeInitialLoad = false;
+          const update = queuedUpdate;
+          queuedUpdate = null;
+          pushUpdate(update);
         }
+      });
 
-        dirty = true;
-        return;
-      }
-      push();
-    };
+    const unsubscribeStorage = this.storage.subscribeDocUpdate((docId) => {
+      if (docId !== doc.id) return;
 
-    const stopTitle = doc.title$.subscribe(() => markLocalChange("title"));
-    const stopContent = doc.content$.subscribe(() =>
-      markLocalChange("content"),
-    );
+      void this.storage.getDocUpdates(doc.id).then((updates) => {
+        applyingStorage = true;
+        try {
+          doc.applyRemoteUpdate(() => {
+            for (const record of updates) {
+              applyToyDocUpdate(doc.ydoc, record.update);
+            }
+          });
+        } finally {
+          applyingStorage = false;
+        }
+      });
+    });
 
     return () => {
-      unsubscribeRemote();
-      stopTitle();
-      stopContent();
+      doc.ydoc.off("update", handleLocalUpdate);
+      unsubscribeStorage();
     };
   }
+}
+
+function mergeQueuedUpdate(
+  current: Uint8Array | null,
+  next: Uint8Array,
+): Uint8Array {
+  if (!current) {
+    return next;
+  }
+
+  return Y.mergeUpdates([current, next]);
 }
