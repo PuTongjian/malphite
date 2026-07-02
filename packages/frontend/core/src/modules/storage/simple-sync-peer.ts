@@ -34,7 +34,7 @@ export class SimpleSyncPeer {
 
     this.unsubscribeRemote = this.remote.subscribeDocUpdate((docId) => {
       if (this.pushingToRemote.has(docId) || this.syncingDoc.has(docId)) {
-        this.pushAgain.add(docId);
+        this.pullAgain.add(docId);
         return;
       }
 
@@ -103,11 +103,85 @@ export class SimpleSyncPeer {
     } finally {
       this.syncingDoc.delete(docId);
     }
+
+    if (this.pullAgain.has(docId) || this.pushAgain.has(docId)) {
+      await this.pull(docId);
+      await this.push(docId);
+    }
   }
 
-  async push(_docId: string) {}
+  async push(docId: string) {
+    if (this.pushingToRemote.has(docId)) {
+      this.pushAgain.add(docId);
+      return;
+    }
 
-  async pull(_docId: string) {}
+    this.pushingToRemote.add(docId);
+    try {
+      do {
+        this.pushAgain.delete(docId);
+
+        const lastLocalClock = this.localClock.get(docId) ?? 0;
+        const updates = await this.local.getDocUpdatesAfter(
+          docId,
+          lastLocalClock,
+        );
+
+        for (const record of updates) {
+          if (this.wasAppliedFromRemote(docId, record.clock)) {
+            this.rememberLocalClock(docId, record.clock);
+            continue;
+          }
+
+          const remoteRecord = await this.remote.pushDocUpdate(
+            docId,
+            record.update,
+          );
+          this.rememberLocalClock(docId, record.clock);
+          this.rememberRemoteClock(docId, remoteRecord.clock);
+        }
+      } while (this.pushAgain.has(docId));
+    } finally {
+      this.pushingToRemote.delete(docId);
+      this.pushAgain.delete(docId);
+    }
+  }
+
+  async pull(docId: string) {
+    if (this.pullingFromRemote.has(docId)) {
+      this.pullAgain.add(docId);
+      return;
+    }
+
+    this.pullingFromRemote.add(docId);
+    try {
+      do {
+        this.pullAgain.delete(docId);
+
+        const lastRemoteClock = this.remoteClock.get(docId) ?? 0;
+        const updates = await this.remote.getDocUpdatesAfter(
+          docId,
+          lastRemoteClock,
+        );
+
+        for (const record of updates) {
+          const localRecord = await this.local.pushDocUpdate(
+            docId,
+            record.update,
+          );
+          this.rememberRemoteClock(docId, record.clock);
+          this.rememberRemoteAppliedLocalClock(docId, localRecord.clock);
+        }
+      } while (this.pullAgain.has(docId));
+    } finally {
+      this.pullingFromRemote.delete(docId);
+      this.pullAgain.delete(docId);
+    }
+  }
+
+  private wasAppliedFromRemote(docId: string, clock: number) {
+    return this.remoteAppliedLocalClocks.get(docId)?.has(clock) ?? false;
+  }
 
   private rememberLocalClock(docId: string, clock: number) {
     this.localClock.set(
