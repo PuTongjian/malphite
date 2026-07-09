@@ -1,15 +1,17 @@
-import type { Doc, DocRecord, DocStorage } from "@malphite/core";
+import type {
+  DocMetaRecord,
+  DocStorage,
+  DocUpdateRecord,
+} from "@malphite/core";
 
 const DB_NAME = "malphite-doc-storage";
-const DOC_STORE = "doc-records";
+const DOC_UPDATE_STORE = "doc-updates";
 const META_STORE = "meta";
-// ← Phase 1 worker 旧 store，仅给下面遗留的 loadDocs/saveDocs 用
-const LEGACY_DOC_STORE = "docs";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 type MetaRecord = {
   workspaceId: string;
-  docIds: string[];
+  docs: DocMetaRecord[];
 };
 
 let databasePromise: Promise<IDBDatabase> | null = null;
@@ -45,16 +47,12 @@ function openDatabase() {
 
     request.onupgradeneeded = () => {
       const db = request.result;
-      if (!db.objectStoreNames.contains(DOC_STORE)) {
-        db.createObjectStore(DOC_STORE);
+      if (!db.objectStoreNames.contains(DOC_UPDATE_STORE)) {
+        db.createObjectStore(DOC_UPDATE_STORE);
       }
 
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE);
-      }
-
-      if (!db.objectStoreNames.contains(LEGACY_DOC_STORE)) {
-        db.createObjectStore(LEGACY_DOC_STORE);
       }
     };
 
@@ -95,30 +93,49 @@ function idbPut(storeName: string, key: string, value: unknown): Promise<void> {
 
 export function createIndexedDbDocStorage(): DocStorage {
   return {
-    async getDoc(docId) {
-      return (await idbGet<DocRecord>(DOC_STORE, docId)) ?? null;
+    async getDocUpdates(docId) {
+      return (await idbGet<DocUpdateRecord[]>(DOC_UPDATE_STORE, docId)) ?? [];
     },
 
-    async pushDocUpdate(docId, data) {
-      const record: DocRecord = {
+    async getDocUpdatesAfter(docId, clock) {
+      const records =
+        (await idbGet<DocUpdateRecord[]>(DOC_UPDATE_STORE, docId)) ?? [];
+
+      return records.filter((records) => records.clock > clock);
+    },
+
+    async pushDocUpdate(docId, update) {
+      const records =
+        (await idbGet<DocUpdateRecord[]>(DOC_UPDATE_STORE, docId)) ?? [];
+      const record: DocUpdateRecord = {
         docId,
-        data,
+        update,
+        clock: records.length + 1,
         timestamp: Date.now(),
       };
 
-      await idbPut(DOC_STORE, docId, record);
+      await idbPut(DOC_UPDATE_STORE, docId, [...records, record]);
       notify(docId);
+
+      return record;
+    },
+
+    async getDocClock(docId) {
+      const records =
+        (await idbGet<DocUpdateRecord[]>(DOC_UPDATE_STORE, docId)) ?? [];
+
+      return records.at(-1)?.clock ?? 0;
     },
 
     async getDocList(workspaceId: string) {
       const meta = await idbGet<MetaRecord>(META_STORE, workspaceId);
-      return meta?.docIds ?? [];
+      return meta?.docs ?? [];
     },
 
-    async setDocList(workspaceId: string, docIds: string[]) {
+    async setDocList(workspaceId: string, docs: DocMetaRecord[]) {
       await idbPut(META_STORE, workspaceId, {
         workspaceId,
-        docIds,
+        docs,
       } satisfies MetaRecord);
     },
 
@@ -129,15 +146,4 @@ export function createIndexedDbDocStorage(): DocStorage {
       };
     },
   };
-}
-
-export async function loadDocs(workspaceId: string): Promise<Doc[]> {
-  return (await idbGet<Doc[]>(LEGACY_DOC_STORE, workspaceId)) ?? [];
-}
-
-export async function saveDocs(
-  workspaceId: string,
-  docs: Doc[],
-): Promise<void> {
-  await idbPut(LEGACY_DOC_STORE, workspaceId, docs);
 }

@@ -1,8 +1,8 @@
 import type {
-  DocRecordData,
+  DocMetaRecord,
   DocStorage,
+  DocUpdateRecord,
 } from "~/src/modules/storage/doc-storage";
-import type { Doc } from "./doc-types";
 
 export class DocStore {
   constructor(
@@ -10,54 +10,27 @@ export class DocStore {
     private workspaceId: string,
   ) {}
 
-  async getDoc(docId: string) {
-    return this.storage.getDoc(docId);
+  async getDocUpdates(docId: string): Promise<DocUpdateRecord[]> {
+    return this.storage.getDocUpdates(docId);
   }
 
-  async pushDocUpdate(docId: string, data: DocRecordData) {
-    await this.storage.pushDocUpdate(docId, data);
+  async getDocUpdatesAfter(docId: string, clock: number) {
+    return this.storage.getDocUpdatesAfter(docId, clock);
   }
+
+  async pushDocUpdate(docId: string, update: Uint8Array) {
+    return this.storage.pushDocUpdate(docId, update);
+  }
+
   subscribeDocUpdate(callback: (docId: string) => void) {
     return this.storage.subscribeDocUpdate(callback);
   }
 
-  async listDocIds() {
+  async loadList(): Promise<DocMetaRecord[]> {
     return this.storage.getDocList(this.workspaceId);
   }
 
-  async load(workspaceId: string): Promise<Doc[]> {
-    const ids = await this.storage.getDocList(workspaceId);
-    const docs: Doc[] = [];
-
-    for (const id of ids) {
-      const record = await this.storage.getDoc(id);
-      if (record) {
-        docs.push({
-          id: record.docId,
-          title: record.data.title,
-          content: record.data.content,
-        });
-      }
-    }
-
-    return docs;
-  }
-
-  async save(workspaceId: string, docs: Doc[]): Promise<void> {
-    for (const doc of docs) {
-      await this.storage.pushDocUpdate(doc.id, {
-        title: doc.title,
-        content: doc.content,
-      });
-    }
-
-    this.setDocList(workspaceId, docs);
-  }
-
-  async setDocList(workspaceId: string, docs: Doc[]): Promise<void> {
-    await this.storage.setDocList(
-      workspaceId,
-      docs.map((doc) => doc.id),
-    );
+  async setDocList(docs: DocMetaRecord[]) {
+    await this.storage.setDocList(this.workspaceId, docs);
   }
 }

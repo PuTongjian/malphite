@@ -1,10 +1,10 @@
 import type { FrameworkProvider } from "~/src/framework/framework";
+import type { SimpleSyncPeer } from "~/src/modules/storage/simple-sync-peer";
 import { ObjectPool, type PoolHandle } from "~/src/shared/object-pool";
 import { DocEntity } from "./doc-entity";
 import type { DocFrontend } from "./doc-frontend";
 import { DocScope } from "./doc-scope";
 import type { DocService } from "./doc-service";
-import { DocStore } from "./doc-store";
 
 export type DocOpenHandle = PoolHandle<{
   doc: DocEntity;
@@ -19,6 +19,7 @@ export class DocsService {
     private provider: FrameworkProvider,
     private listService: DocService,
     private docFrontend: DocFrontend,
+    private syncPeer: SimpleSyncPeer,
   ) {}
 
   get docs$() {
@@ -56,27 +57,26 @@ export class DocsService {
       framework
         .service(DocScope, () => new DocScope(docId))
         .entity(DocEntity, (_provider) => {
-          return new DocEntity(
-            _provider.get(DocScope),
-            _provider.get(DocStore),
-          );
+          return new DocEntity(_provider.get(DocScope));
         });
     });
 
     const record = this.listService.get(docId);
     const docEntity = docProvider.createEntity(DocEntity, undefined as never);
+    const disconnect = this.docFrontend.connect(docEntity);
 
     if (record) {
       docEntity.title$.set(record.title);
     }
 
-    const disconnect = this.docFrontend.connect(docEntity);
+    void this.syncPeer.syncDoc(docId);
 
     const handle = {
       doc: docEntity,
       provider: docProvider,
       dispose: () => {
         disconnect();
+        docEntity.dispose();
         docProvider.dispose();
       },
     };

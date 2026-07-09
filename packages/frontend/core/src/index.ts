@@ -12,9 +12,9 @@ export {
   WorkerDocStorageDriver,
 } from "./modules/storage";
 export type {
-  DocRecord,
-  DocRecordData,
+  DocMetaRecord,
   DocStorage,
+  DocUpdateRecord,
 } from "./modules/storage/doc-storage";
 export { DocStorageHandle } from "./modules/storage/doc-storage";
 export type {
