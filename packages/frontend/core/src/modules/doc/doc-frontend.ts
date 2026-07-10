@@ -50,6 +50,8 @@ export class DocFrontend {
     void this.storage
       .getDocUpdates(doc.id)
       .then((updates) => {
+        if (updates.length === 0) return;
+
         applyingStorage = true;
         doc.applyRemoteUpdate(() => {
           for (const record of updates) {
@@ -73,6 +75,8 @@ export class DocFrontend {
       if (docId !== doc.id) return;
 
       void this.storage.getDocUpdates(doc.id).then((updates) => {
+        if (updates.length === 0) return;
+
         applyingStorage = true;
         try {
           doc.applyRemoteUpdate(() => {

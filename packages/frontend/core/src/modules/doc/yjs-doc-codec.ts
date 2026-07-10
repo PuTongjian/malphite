@@ -10,17 +10,7 @@ const TITLE_KEY = "title";
 const CONTENT_TEXT = "content";
 
 export function createEmptyToyYDoc() {
-  const doc = new Y.Doc();
-
-  doc.transact(() => {
-    const root = doc.getMap<string>(ROOT_MAP);
-
-    if (!root.has(TITLE_KEY)) {
-      root.set(TITLE_KEY, "");
-    }
-  }, "init");
-
-  return doc;
+  return new Y.Doc();
 }
 
 export function readToyDocFields(doc: Y.Doc): ToyDocFields {
